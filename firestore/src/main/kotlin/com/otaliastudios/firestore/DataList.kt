@@ -7,9 +7,7 @@ package com.otaliastudios.firestore
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
-import android.util.Log
 import com.google.firebase.firestore.Exclude
-import kotlin.reflect.KType
 
 /**
  * A list implementation. Delegates to a mutable list.
@@ -106,12 +104,12 @@ open class DataList<T: Any> @JvmOverloads constructor(
     }
 
     protected open fun <K> onCreateDataMap(): DataMap<K> {
-        val provider = Data.metadataProvider(this::class)
+        val provider = DataDocument.metadataProvider(this::class)
         return provider.createInnerType<DataMap<K>>() ?: DataMap()
     }
 
     protected open fun <K: Any> onCreateDataList(): DataList<K> {
-        val provider = Data.metadataProvider(this::class)
+        val provider = DataDocument.metadataProvider(this::class)
         return provider.createInnerType<DataList<K>>() ?: DataList()
     }
 
@@ -172,8 +170,8 @@ open class DataList<T: Any> @JvmOverloads constructor(
                 val className = value::class.java.name
                 parcel.writeString(className)
                 @Suppress("UNCHECKED_CAST")
-                val parceler = Data.PARCELERS[className] as? Data.Parceler<Any?>
-                if (parceler == null) throw IllegalStateException("Can not parcel type ${value.javaClass}. Please register a parceler using Data.registerParceler.")
+                val parceler = DataDocument.PARCELERS[className] as? DataDocument.Parceler<Any?>
+                if (parceler == null) throw IllegalStateException("Can not parcel type ${value.javaClass}. Please register a parceler using DataDocument.registerParceler.")
                 parceler.write(value, parcel, 0)
             }
         }
@@ -202,8 +200,8 @@ open class DataList<T: Any> @JvmOverloads constructor(
                         else -> {
                             val className = parcel.readString()
                             @Suppress("UNCHECKED_CAST")
-                            val parceler = Data.PARCELERS[className] as? Data.Parceler<Any>
-                            if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using Data.registerParceler.")
+                            val parceler = DataDocument.PARCELERS[className] as? DataDocument.Parceler<Any>
+                            if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using DataDocument.registerParceler.")
                             parceler.create(parcel)
                         }
                     })

@@ -13,12 +13,11 @@ import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.*
 import kotlin.reflect.KClass
-import kotlin.reflect.KType
 
 /**
  * TODO: find a better solution for parcelables.
  */
-abstract class Data(
+abstract class DataDocument(
         @get:Exclude var collection: String? = null,
         @get:Exclude var id: String? = null,
         source: Map<String, Any?>? = null
@@ -61,14 +60,14 @@ abstract class Data(
     }
 
     @Exclude
-    fun <T: Data> save(): Task<T> {
+    fun <T: DataDocument> save(): Task<T> {
         return when {
             isNew() -> create()
             else -> update()
         }
     }
 
-    private fun <T: Data> update(): Task<T> {
+    private fun <T: DataDocument> update(): Task<T> {
         if (isNew()) throw IllegalStateException("Can not save a new object. Please call create().")
         // Collect all dirty values.
         val map = mutableMapOf<String, Any?>()
@@ -82,7 +81,7 @@ abstract class Data(
         }
     }
 
-    private fun <T: Data> create(): Task<T> {
+    private fun <T: DataDocument> create(): Task<T> {
         if (!isNew()) throw IllegalStateException("Can not create an existing object.")
         val reference = requireReference()
         // Collect all values. Can't use 'this': we can't be read by Firestore unless we have fields declared.
@@ -102,7 +101,7 @@ abstract class Data(
     }
 
     @Exclude
-    fun <T: Data> trySave(vararg updates: Pair<String, Any?>): Task<T> {
+    fun <T: DataDocument> trySave(vararg updates: Pair<String, Any?>): Task<T> {
         if (isNew()) throw IllegalStateException("Can not trySave a new object. Please call save() first.")
         val reference = requireReference()
         val values = updates.toMap().toMutableMap()
@@ -122,7 +121,7 @@ abstract class Data(
                 clearDirt("updatedAt")
                 clearDirt("createdAt")
                 @Suppress("UNCHECKED_CAST")
-                this@Data as T
+                this@DataDocument as T
             }
         }
     }
@@ -136,7 +135,7 @@ abstract class Data(
                 .build()
         }
 
-        internal val CACHE = LruCache<String, Data>(100)
+        internal val CACHE = LruCache<String, DataDocument>(100)
 
         private val METADATA_PROVIDERS = mutableMapOf<String, DataMetadata>()
         internal val PARCELERS = mutableMapOf<String, Parceler<*>>()
@@ -191,8 +190,8 @@ abstract class Data(
 
 
 @Suppress("UNCHECKED_CAST", "RedundantVisibilityModifier")
-public fun <T: Data> DocumentSnapshot.toData(type: KClass<T>): T {
-    var result = Data.CACHE.get(reference.id) as? T
+public fun <T: DataDocument> DocumentSnapshot.toDataDocument(type: KClass<T>): T {
+    var result = DataDocument.CACHE.get(reference.id) as? T
     if (result == null) {
         result = type.java.newInstance()!!
         result.clearDirt() // Clear dirtyness from init().
@@ -204,8 +203,8 @@ public fun <T: Data> DocumentSnapshot.toData(type: KClass<T>): T {
 }
 
 @Suppress("RedundantVisibilityModifier")
-public inline fun <reified T: Data> DocumentSnapshot.toData(): T {
-    return toData(T::class)
+public inline fun <reified T: DataDocument> DocumentSnapshot.toDataDocument(): T {
+    return toDataDocument(T::class)
 }
 
 public fun <T: Any> dataListOf(vararg elements: T): DataList<T> {

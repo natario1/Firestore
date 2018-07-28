@@ -19,7 +19,7 @@ object Parcelers {
      * Parcels a possibly null DocumentReference.
      * Uses FirebaseFirestore.getInstance().
      */
-    object DocumentReferenceParceler: Data.Parceler<DocumentReference> {
+    object DocumentReferenceParceler: DataDocument.Parceler<DocumentReference> {
 
         override fun create(parcel: Parcel): DocumentReference {
             return FirebaseFirestore.getInstance().document(parcel.readString())
@@ -33,7 +33,7 @@ object Parcelers {
     /**
      * Parcels a possibly null Timestamp.
      */
-    object TimestampParceler: Data.Parceler<Timestamp> {
+    object TimestampParceler: DataDocument.Parceler<Timestamp> {
 
         override fun create(parcel: Parcel): Timestamp {
             return Timestamp(parcel.readLong(), parcel.readInt())
@@ -48,7 +48,7 @@ object Parcelers {
     /**
      * Parcels a FieldValue
      */
-    object FieldValueParceler: Data.Parceler<FieldValue> {
+    object FieldValueParceler: DataDocument.Parceler<FieldValue> {
 
         override fun create(parcel: Parcel): FieldValue {
             val what = parcel.readString()

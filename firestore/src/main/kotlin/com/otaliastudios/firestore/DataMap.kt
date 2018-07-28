@@ -7,11 +7,9 @@ package com.otaliastudios.firestore
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
-import android.util.Log
 import androidx.databinding.BaseObservable
 import com.google.firebase.firestore.Exclude
 import kotlin.reflect.KProperty
-import kotlin.reflect.KType
 
 /**
  * A map implementation. Delegates to a mutable map.
@@ -97,7 +95,7 @@ open class DataMap<T>(
     }
 
     protected open fun <K> onCreateDataMap(key: String): DataMap<K> {
-        val provider = Data.metadataProvider(this::class)
+        val provider = DataDocument.metadataProvider(this::class)
         var candidate = provider.create<DataMap<K>>(key)
         candidate = candidate ?: provider.createInnerType()
         candidate = candidate ?: DataMap()
@@ -105,7 +103,7 @@ open class DataMap<T>(
     }
 
     protected open fun <K: Any> onCreateDataList(key: String): DataList<K> {
-        val provider = Data.metadataProvider(this::class)
+        val provider = DataDocument.metadataProvider(this::class)
         var candidate = provider.create<DataList<K>>(key)
         candidate = candidate ?: provider.createInnerType()
         candidate = candidate ?: DataList()
@@ -124,7 +122,7 @@ open class DataMap<T>(
         } else {
             data[key] = result
             dirty.add(key)
-            val resource = Data.metadataProvider(this::class).getBindableResource(key)
+            val resource = DataDocument.metadataProvider(this::class).getBindableResource(key)
             if (resource != null) notifyPropertyChanged(resource)
         }
     }
@@ -161,7 +159,7 @@ open class DataMap<T>(
         @Suppress("UNCHECKED_CAST")
         var what = source[property.name] as R
         if (what == null) {
-            val provider = Data.metadataProvider(this::class)
+            val provider = DataDocument.metadataProvider(this::class)
             if (!provider.isNullable(property.name)) {
                 what = provider.create<R>(property.name)!!
             }
@@ -270,8 +268,8 @@ open class DataMap<T>(
                 val className = (value as Any)::class.java.name
                 parcel.writeString(className)
                 @Suppress("UNCHECKED_CAST")
-                val parceler = Data.PARCELERS[className] as? Data.Parceler<Any?>
-                if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using Data.registerParceler.")
+                val parceler = DataDocument.PARCELERS[className] as? DataDocument.Parceler<Any?>
+                if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using DataDocument.registerParceler.")
                 parceler.write(value, parcel, 0)
             }
         }
@@ -302,8 +300,8 @@ open class DataMap<T>(
                         else -> {
                             val className = parcel.readString()
                             @Suppress("UNCHECKED_CAST")
-                            val parceler = Data.PARCELERS[className] as? Data.Parceler<Any?>
-                            if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using Data.registerParceler.")
+                            val parceler = DataDocument.PARCELERS[className] as? DataDocument.Parceler<Any?>
+                            if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using DataDocument.registerParceler.")
                             parceler.create(parcel)
                         }
                     }
