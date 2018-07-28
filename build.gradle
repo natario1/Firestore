@@ -37,7 +37,7 @@ ext {
     targetSdkVersion = 28
     buildToolsVersion = "28.0.0"
 
-    libVersion = "0.1.0"
+    libVersion = "0.1.1"
     libGroup = 'com.otaliastudios'
     githubUrl = "https://github.com/natario1/Firestore"
     githubGit = "https://github.com/natario1/Firestore.git"

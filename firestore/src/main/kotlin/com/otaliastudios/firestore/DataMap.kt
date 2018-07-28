@@ -4,11 +4,11 @@
 
 package com.otaliastudios.firestore
 
-import android.databinding.BaseObservable
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
 import android.util.Log
+import androidx.databinding.BaseObservable
 import com.google.firebase.firestore.Exclude
 import kotlin.reflect.KProperty
 import kotlin.reflect.KType
