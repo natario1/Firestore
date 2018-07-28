@@ -1,0 +1,48 @@
+/*
+ * Copyright (c) 2018 Otalia Studios. Author: Mattia Iavarone.
+ */
+
+buildscript {
+
+    ext {
+        kotlinVersion = '1.2.50'
+        androidGradlePluginVersion = '3.2.0-beta04'
+        dokkaVersion = '0.9.17'
+    }
+
+    repositories {
+        google()
+        jcenter()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:$androidGradlePluginVersion"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
+        classpath 'com.github.dcendents:android-maven-gradle-plugin:2.1'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.0'
+        classpath "org.jetbrains.dokka:dokka-android-gradle-plugin:$dokkaVersion"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        jcenter()
+        maven { url "https://kotlin.bintray.com/kotlinx/" }
+    }
+}
+
+ext {
+    minSdkVersion = 16
+    compileSdkVersion = 28
+    targetSdkVersion = 28
+    buildToolsVersion = "28.0.0"
+
+    libVersion = "0.1.0"
+    libGroup = 'com.otaliastudios'
+    githubUrl = "https://github.com/natario1/Firestore"
+    githubGit = "https://github.com/natario1/Firestore.git"
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

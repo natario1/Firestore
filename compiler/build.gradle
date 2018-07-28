@@ -1,0 +1,80 @@
+/*
+ * Copyright (c) 2018 Otalia Studios. Author: Mattia Iavarone.
+ */
+
+apply plugin: 'kotlin'
+
+apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'com.jfrog.bintray'
+
+ext {
+    libVersion = rootProject.ext.libVersion
+    libGroup = rootProject.ext.libGroup
+    libName = 'Firestore'
+    libDescription = 'The efficient wrapper for Firestore model data.'
+    libArtifactId = 'firestore-compiler'
+    githubUrl = rootProject.ext.githubUrl
+    githubGit = rootProject.ext.githubGit
+}
+
+version = libVersion
+group = libGroup
+archivesBaseName = libArtifactId
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
+    // compile "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
+    compile "org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.0.2"
+    compile 'com.squareup:kotlinpoet:0.7.0'
+}
+
+sourceCompatibility = "1.7"
+targetCompatibility = "1.7"
+
+install.repositories.mavenInstaller.pom.project {
+    name libName
+    description libDescription
+    url githubUrl
+    groupId libGroup
+    artifactId libArtifactId
+    version libVersion
+    packaging 'jar'
+    scm {
+        connection githubGit
+        url githubUrl
+    }
+    licenses {
+        license {
+            name 'The Apache Software License, Version 2.0'
+            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+        }
+    }
+    developers {
+        developer {
+            id 'natario'
+            name 'Mattia Iavarone'
+        }
+    }
+}
+
+Properties props = new Properties()
+props.load(project.rootProject.file('local.properties').newDataInputStream())
+bintray {
+    user = props.getProperty('bintray.user')
+    key = props.get('bintray.key')
+    configurations = ['archives']
+    override = true
+    publish = true
+    pkg {
+        repo = 'android'
+        name = libName
+        licenses = ['Apache-2.0']
+        vcsUrl = githubGit
+        desc = libDescription
+        version {
+            name = libVersion
+            released = new Date()
+            vcsTag = libVersion
+        }
+    }
+}

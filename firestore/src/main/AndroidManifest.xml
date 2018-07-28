@@ -1,0 +1,6 @@
+<!--
+  ~ Copyright (c) 2018 Otalia Studios. Author: Mattia Iavarone.
+  -->
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.otaliastudios.firestore" />
