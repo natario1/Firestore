@@ -48,8 +48,9 @@ val message = Message()
 user.messages.add(message) // We didn't have to instantiate Messages()
 ```
 
+Fiels are instantiated automatically and **lazily**, when requested. 
 The map and list implementations parsed by the compiler are also used when retrieving the document
-from the network.
+from the network, which makes it much more efficient than using reflection to find setters.
 
 ```kotlin
 val user: User = documentSnapshot.toDataDocument()
