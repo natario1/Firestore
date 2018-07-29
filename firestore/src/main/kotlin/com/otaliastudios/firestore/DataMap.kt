@@ -112,9 +112,9 @@ open class DataMap<T>(
 
     final operator fun set(key: String, value: T) {
         val result = onSet(key, value)
-        if (result == null) {
+        /* if (result == null) {
             // Do nothing.
-        } else if (key.contains('.')) {
+        } else */if (key.contains('.')) {
             val first = key.split('.')[0]
             val second = key.removePrefix("$first.")
             val data = getOrCreateDataMap(first)
@@ -127,7 +127,7 @@ open class DataMap<T>(
         }
     }
 
-    internal open fun onSet(key: String, value: T): T? = value
+    internal open fun onSet(key: String, value: T): T = value
 
     final operator fun get(key: String): T? {
         return if (key.contains('.')) {
