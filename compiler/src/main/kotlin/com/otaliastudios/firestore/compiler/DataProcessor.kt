@@ -24,7 +24,9 @@ class DataProcessor : AbstractProcessor() {
 
     @Suppress("UNCHECKED_CAST")
     companion object {
-        init {
+
+        // Should not be needed anymore.
+        /* init {
             // Bug fix for 0.0.2: https://youtrack.jetbrains.com/issue/KT-24881
             with(Thread.currentThread()) {
                 val classLoader = contextClassLoader
@@ -35,7 +37,7 @@ class DataProcessor : AbstractProcessor() {
                     contextClassLoader = classLoader
                 }
             }
-        }
+        } */
 
         val FIRESTORE_EXCLUDE = Class.forName("com.google.firebase.firestore.Exclude") as Class<Annotation>
         val NULLABLE = Class.forName("org.jetbrains.annotations.Nullable") as Class<Annotation>
@@ -268,12 +270,11 @@ class DataProcessor : AbstractProcessor() {
     }
 
     override fun getSupportedSourceVersion(): SourceVersion {
-        return SourceVersion.RELEASE_7
+        return SourceVersion.RELEASE_8
     }
 
-
     // https://github.com/JetBrains/kotlin/tree/master/libraries/kotlinx-metadata/jvm
-// https://github.com/square/moshi/pull/570/files
+    // https://github.com/square/moshi/pull/570/files
     @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
     private fun Element.readHeader(): KotlinClassHeader? {
         return getAnnotation(Metadata::class.java)?.run {

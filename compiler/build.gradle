@@ -24,12 +24,12 @@ archivesBaseName = libArtifactId
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
     // compile "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
-    compile "org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.0.2"
-    compile 'com.squareup:kotlinpoet:0.7.0'
+    compile "org.jetbrains.kotlinx:kotlinx-metadata-jvm:$kotlinxMetadataVersion"
+    compile "com.squareup:kotlinpoet:$kotlinPoetVersion"
 }
 
-sourceCompatibility = "1.7"
-targetCompatibility = "1.7"
+sourceCompatibility = "1.8"
+targetCompatibility = "1.8"
 
 install.repositories.mavenInstaller.pom.project {
     name libName

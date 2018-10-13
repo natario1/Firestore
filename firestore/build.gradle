@@ -41,12 +41,17 @@ android {
         main.java.srcDirs += 'src/main/kotlin'
         test.java.srcDirs += 'src/test/kotlin'
     }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 }
 
 dependencies {
     api "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
     // api "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
-    api "com.google.firebase:firebase-firestore:17.0.4"
+    api "com.google.firebase:firebase-firestore:$firestoreVersion"
 }
 
 task sourcesJar(type: Jar) {
