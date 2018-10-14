@@ -3,8 +3,8 @@
 The lightweight, efficient wrapper for Firestore model data, written in Kotlin, with data-binding and Parcelable support.
 
 ```groovy
-implementation 'com.otaliastudios:firestore:0.1.3.1'
-kapt 'com.otaliastudios:firestore-compiler:0.1.3.1'
+implementation 'com.otaliastudios:firestore:0.2.0'
+kapt 'com.otaliastudios:firestore-compiler:0.2.0'
 ```
 
 - Efficient and lightweight
@@ -17,21 +17,21 @@ kapt 'com.otaliastudios:firestore-compiler:0.1.3.1'
 
 # We know about your schema
 
-The key classes here are `DataDocument` (for documents), `DataMap` and `DataList` (for inner maps and lists).
+The key classes here are `FirestoreDocument` (for documents), `FirestoreMap` and `FirestoreList` (for inner maps and lists).
 They use Kotlin delegation so you can declare expected fields using the `by this` syntax:
 
 ```kotlin
-@DataClass
-class User : DataDocument() {
+@FirestoreClass
+class User : FirestoreDocument() {
     var type: Int by this
     var imageUrl: String? by this
     var messages: Messages by this
     
-    @DataClass
-    class Messages : DataList<Message>()
+    @FirestoreClass
+    class Messages : FirestoreList<Message>()
     
-    @DataClass
-    class Message : DataMap<Any?>() {
+    @FirestoreClass
+    class Message : FirestoreMap<Any?>() {
         var from: String by this
         var to: String by this
         var text: String? by this
@@ -53,7 +53,7 @@ The map and list implementations parsed by the compiler are also used when retri
 from the network, which makes it much more efficient than using reflection to find setters.
 
 ```kotlin
-val user: User = documentSnapshot.toDataDocument()
+val user: User = documentSnapshot.toFirestoreDocument()
 val lastMessage = user.messages.last()
 ```
 
@@ -63,8 +63,8 @@ The fields that are marked as not nullable, will be instantiated using their no 
 This means that, for example, `Int` defaults to `0`. To specify different defaults, simply use an init block:
 
 ```kotlin
-@DataClass
-class User : DataDocument() {
+@FirestoreClass
+class User : FirestoreDocument() {
     var type: Int by this
     
     init {
@@ -80,8 +80,8 @@ This means that if you run a query for 50 documents and 20 were already cached, 
 instance instead of creating new ones.
 
 ```kotlin
-val user1: User = documentSnapshot.toDataDocument()
-val user2: User = documentSnapshot.toDataDocument()
+val user1: User = documentSnapshot.toFirestoreDocument()
+val user2: User = documentSnapshot.toFirestoreDocument()
 assert(user1 === user2)
 ```
 
@@ -122,7 +122,7 @@ user.save()
 
 # Built-in Data Binding support
 
-The `DataDocument` and `DataMap` classes extend the `BaseObservable` class from the official data binding lib.
+The `FirestoreDocument` and `FirestoreMap` classes extend the `BaseObservable` class from the official data binding lib.
 Thanks to the compiler, all declared fields will automatically call `notifyPropertyChanged()` for you,
 which hugely reduce the work needed to implement databinding and two-way databinding.
 
@@ -130,8 +130,8 @@ which hugely reduce the work needed to implement databinding and two-way databin
 In fact, all you have to do is add `@get:Bindable` to your fields:
 
 ```kotlin
-@DataClass
-class Message : DataDocument() {
+@FirestoreClass
+class Message : FirestoreDocument() {
     @get:Bindable var text: String by this
     @get:Bindable var comment: String by this
 }
@@ -150,8 +150,8 @@ If your object holds metadata that should not by saved to network (for instance,
 they can be saved and restored to the `Parcel` overriding the class callbacks:
 
 ```kotlin
-@DataClass
-class Message : DataDocument() {
+@FirestoreClass
+class Message : FirestoreDocument() {
     var text: String by this
     var comment: String by this
     
@@ -171,21 +171,21 @@ class Message : DataDocument() {
 
 We offer built in parcelers for `DocumentReference`, `Timestamp` and `FieldValue` types.
 If your types do not implement parcelable directly, either have them implement it or register
-a parceler using `DataDocument.registerParceler()`:
+a parceler using `FirestoreDocument.registerParceler()`:
 
 ```kotlin
 class App : Application() {
 
     override fun onCreate() {
-        DataDocument.registerParceler(GeoPoint::class, GeoPointParceler())
-        DataDocument.registerParceler(Whatever::class, WhateverParceler())
+        FirestoreDocument.registerParceler(GeoPoint::class, GeoPointParceler())
+        FirestoreDocument.registerParceler(Whatever::class, WhateverParceler())
     }
     
-    class GeoPointParceler : DataDocument.Parceler<GeoPoint>() {
+    class GeoPointParceler : FirestoreDocument.Parceler<GeoPoint>() {
         // ...
     }
     
-    class WhateverParceler : DataDocument.Parceler<Whatever>() {
+    class WhateverParceler : FirestoreDocument.Parceler<Whatever>() {
         // ...
     }
 }

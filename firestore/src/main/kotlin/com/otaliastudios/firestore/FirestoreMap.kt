@@ -15,7 +15,7 @@ import kotlin.reflect.KProperty
  * A map implementation. Delegates to a mutable map.
  * Introduce dirtyness checking for childrens.
  */
-open class DataMap<T>(
+open class FirestoreMap<T>(
         source: Map<String, T>? = null
 ) : BaseObservable(), /*MutableMap<String, T> by data,*/ Parcelable {
 
@@ -46,12 +46,12 @@ open class DataMap<T>(
             val data = get(first)
             return when (data) {
                 null -> false
-                is DataMap<*> -> data.isDirty(second)
-                else -> throw IllegalArgumentException("Accessing with dot notation, but it is not a DataMap.")
+                is FirestoreMap<*> -> data.isDirty(second)
+                else -> throw IllegalArgumentException("Accessing with dot notation, but it is not a FirestoreMap.")
             }
         }
         val what = get(key)
-        if (what is DataList<*>) {
+        if (what is FirestoreList<*>) {
             return what.isDirty()
         } else {
             return false
@@ -69,44 +69,44 @@ open class DataMap<T>(
             dirty.remove(key)
         } else {
             val value = get(key)
-            if (value is DataMap<*>) {
+            if (value is FirestoreMap<*>) {
                 value.clearDirt()
-            } else if (value is DataList<*>) {
+            } else if (value is FirestoreList<*>) {
                 value.clearDirt()
             }
         }
     }
 
 
-    private fun <K> createDataMap(key: String): DataMap<K> {
-        val map = try { onCreateDataMap<K>(key) } catch (e: Exception) {
-            DataMap<K>()
+    private fun <K> createFirestoreMap(key: String): FirestoreMap<K> {
+        val map = try { onCreateFirestoreMap<K>(key) } catch (e: Exception) {
+            FirestoreMap<K>()
         }
         map.clearDirt()
         return map
     }
 
-    private fun <K: Any> createDataList(key: String): DataList<K> {
-        val list = try { onCreateDataList<K>(key) } catch (e: Exception) {
-            DataList<K>()
+    private fun <K: Any> createFirestoreList(key: String): FirestoreList<K> {
+        val list = try { onCreateFirestoreList<K>(key) } catch (e: Exception) {
+            FirestoreList<K>()
         }
         list.clearDirt()
         return list
     }
 
-    protected open fun <K> onCreateDataMap(key: String): DataMap<K> {
-        val provider = DataDocument.metadataProvider(this::class)
-        var candidate = provider.create<DataMap<K>>(key)
+    protected open fun <K> onCreateFirestoreMap(key: String): FirestoreMap<K> {
+        val provider = FirestoreDocument.metadataProvider(this::class)
+        var candidate = provider.create<FirestoreMap<K>>(key)
         candidate = candidate ?: provider.createInnerType()
-        candidate = candidate ?: DataMap()
+        candidate = candidate ?: FirestoreMap()
         return candidate
     }
 
-    protected open fun <K: Any> onCreateDataList(key: String): DataList<K> {
-        val provider = DataDocument.metadataProvider(this::class)
-        var candidate = provider.create<DataList<K>>(key)
+    protected open fun <K: Any> onCreateFirestoreList(key: String): FirestoreList<K> {
+        val provider = FirestoreDocument.metadataProvider(this::class)
+        var candidate = provider.create<FirestoreList<K>>(key)
         candidate = candidate ?: provider.createInnerType()
-        candidate = candidate ?: DataList()
+        candidate = candidate ?: FirestoreList()
         return candidate
     }
 
@@ -117,12 +117,12 @@ open class DataMap<T>(
         } else */if (key.contains('.')) {
             val first = key.split('.')[0]
             val second = key.removePrefix("$first.")
-            val data = getOrCreateDataMap(first)
+            val data = getOrCreateFirestoreMap(first)
             data[second] = result
         } else {
             data[key] = result
             dirty.add(key)
-            val resource = DataDocument.metadataProvider(this::class).getBindableResource(key)
+            val resource = FirestoreDocument.metadataProvider(this::class).getBindableResource(key)
             if (resource != null) notifyPropertyChanged(resource)
         }
     }
@@ -133,7 +133,7 @@ open class DataMap<T>(
         return if (key.contains('.')) {
             val first = key.split('.')[0]
             val second = key.removePrefix("$first.")
-            val data = getOrCreateDataMap(first)
+            val data = getOrCreateFirestoreMap(first)
             data[second]
         } else {
             data[key]
@@ -141,25 +141,25 @@ open class DataMap<T>(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun getOrCreateDataMap(key: String): DataMap<T> {
+    private fun getOrCreateFirestoreMap(key: String): FirestoreMap<T> {
         val data = get(key)
         if (data == null) {
-            val map = createDataMap<T>(key)
+            val map = createFirestoreMap<T>(key)
             set(key, map as T)
             return map
-        } else if (data is DataMap<*>) {
-            return data as DataMap<T>
+        } else if (data is FirestoreMap<*>) {
+            return data as FirestoreMap<T>
         } else {
             throw RuntimeException("Trying to access map with dot notation, " +
-                    "but it is not a DataMap. key: $key, value: $data")
+                    "but it is not a FirestoreMap. key: $key, value: $data")
         }
     }
 
-    protected operator fun <R: T> getValue(source: DataMap<T>, property: KProperty<*>): R {
+    protected operator fun <R: T> getValue(source: FirestoreMap<T>, property: KProperty<*>): R {
         @Suppress("UNCHECKED_CAST")
         var what = source[property.name] as R
         if (what == null) {
-            val provider = DataDocument.metadataProvider(this::class)
+            val provider = FirestoreDocument.metadataProvider(this::class)
             if (!provider.isNullable(property.name)) {
                 what = provider.create<R>(property.name)!!
             }
@@ -170,7 +170,7 @@ open class DataMap<T>(
         return what
     }
 
-    protected operator fun <R: T> setValue(source: DataMap<T>, property: KProperty<*>, what: R) {
+    protected operator fun <R: T> setValue(source: FirestoreMap<T>, property: KProperty<*>, what: R) {
         source[property.name] = what
     }
 
@@ -180,9 +180,9 @@ open class DataMap<T>(
             val childPrefix = "$prefix.$key".trim('.')
             if (dirty.contains(key)) {
                 map[childPrefix] = child
-            } else if (child is DataMap<*>) {
+            } else if (child is FirestoreMap<*>) {
                 child.collectDirtyValues(map, childPrefix)
-            } else if (child is DataList<*>) {
+            } else if (child is FirestoreList<*>) {
                 child.collectDirtyValues(map, childPrefix)
             }
         }
@@ -192,9 +192,9 @@ open class DataMap<T>(
         for (key in keys) {
             val child = get(key)
             val childPrefix = "$prefix.$key".trim('.')
-            if (child is DataMap<*>) {
+            if (child is FirestoreMap<*>) {
                 child.collectAllValues(map, childPrefix)
-            } else if (child is DataList<*>) {
+            } else if (child is FirestoreList<*>) {
                 child.collectAllValues(map, childPrefix)
             } else {
                 map[childPrefix] = child
@@ -207,15 +207,15 @@ open class DataMap<T>(
         for ((key, value) in values) {
             if (isDirty(key)) continue
             if (value is Map<*, *> && value.keys.all { it is String }) {
-                val child = get(key) ?: createDataMap<Any?>(key) as T // T
+                val child = get(key) ?: createFirestoreMap<Any?>(key) as T // T
                 data[key] = child
-                child as DataMap<Any?>
+                child as FirestoreMap<Any?>
                 value as Map<String, Any?>
                 child.mergeValues(value)
             } else if (value is List<*>) {
-                val child = get(key) ?: createDataList<Any>(key) as T // T
+                val child = get(key) ?: createFirestoreList<Any>(key) as T // T
                 data[key] = child
-                child as DataList<Any>
+                child as FirestoreList<Any>
                 value as List<Any>
                 child.mergeValues(value)
             } else {
@@ -232,7 +232,7 @@ open class DataMap<T>(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        return other is DataMap<*> &&
+        return other is FirestoreMap<*> &&
                 other.data.size == data.size &&
                 other.data.all { it.value == data[it.key] } &&
                 other.dirty.size == dirty.size &&
@@ -268,8 +268,8 @@ open class DataMap<T>(
                 val className = (value as Any)::class.java.name
                 parcel.writeString(className)
                 @Suppress("UNCHECKED_CAST")
-                val parceler = DataDocument.PARCELERS[className] as? DataDocument.Parceler<Any?>
-                if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using DataDocument.registerParceler.")
+                val parceler = FirestoreDocument.PARCELERS[className] as? FirestoreDocument.Parceler<Any?>
+                if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using FirestoreDocument.registerParceler.")
                 parceler.write(value, parcel, 0)
             }
         }
@@ -282,12 +282,12 @@ open class DataMap<T>(
 
     companion object {
         @JvmField
-        public val CREATOR = object : Parcelable.Creator<DataMap<Any?>> {
+        public val CREATOR = object : Parcelable.Creator<FirestoreMap<Any?>> {
 
-            override fun createFromParcel(parcel: Parcel): DataMap<Any?> {
+            override fun createFromParcel(parcel: Parcel): FirestoreMap<Any?> {
                 val klass = Class.forName(parcel.readString())
                 @Suppress("UNCHECKED_CAST")
-                val dataMap = klass.newInstance() as DataMap<Any?>
+                val dataMap = klass.newInstance() as FirestoreMap<Any?>
                 val dirty = Array(parcel.readInt(), { "" })
                 parcel.readStringArray(dirty)
                 val count = parcel.readInt()
@@ -300,8 +300,8 @@ open class DataMap<T>(
                         else -> {
                             val className = parcel.readString()
                             @Suppress("UNCHECKED_CAST")
-                            val parceler = DataDocument.PARCELERS[className] as? DataDocument.Parceler<Any?>
-                            if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using DataDocument.registerParceler.")
+                            val parceler = FirestoreDocument.PARCELERS[className] as? FirestoreDocument.Parceler<Any?>
+                            if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using FirestoreDocument.registerParceler.")
                             parceler.create(parcel)
                         }
                     }
@@ -316,7 +316,7 @@ open class DataMap<T>(
                 return dataMap
             }
 
-            override fun newArray(size: Int): Array<DataMap<Any?>?> {
+            override fun newArray(size: Int): Array<FirestoreMap<Any?>?> {
                 return Array(size, { null })
             }
         }

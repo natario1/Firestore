@@ -17,11 +17,11 @@ import kotlin.reflect.KClass
 /**
  * TODO: find a better solution for parcelables.
  */
-abstract class DataDocument(
+abstract class FirestoreDocument(
         @get:Exclude var collection: String? = null,
         @get:Exclude var id: String? = null,
         source: Map<String, Any?>? = null
-) : DataMap<Any?>() {
+) : FirestoreMap<Any?>() {
 
     init {
         if (source != null) {
@@ -60,14 +60,14 @@ abstract class DataDocument(
     }
 
     @Exclude
-    fun <T: DataDocument> save(): Task<T> {
+    fun <T: FirestoreDocument> save(): Task<T> {
         return when {
             isNew() -> create()
             else -> update()
         }
     }
 
-    private fun <T: DataDocument> update(): Task<T> {
+    private fun <T: FirestoreDocument> update(): Task<T> {
         if (isNew()) throw IllegalStateException("Can not save a new object. Please call create().")
         // Collect all dirty values.
         val map = mutableMapOf<String, Any?>()
@@ -81,11 +81,11 @@ abstract class DataDocument(
         }
     }
 
-    private fun <T: DataDocument> create(): Task<T> {
+    private fun <T: FirestoreDocument> create(): Task<T> {
         if (!isNew()) throw IllegalStateException("Can not create an existing object.")
         val reference = requireReference()
         // Collect all values. Can't use 'this': we can't be read by Firestore unless we have fields declared.
-        // Same for DataMap and DataList. Each one need to return a Firestore-readable Map or List or whatever else.
+        // Same for FirestoreMap and FirestoreList. Each one need to return a Firestore-readable Map or List or whatever else.
         val map = mutableMapOf<String, Any?>()
         collectAllValues(map, "")
         map["createdAt"] = FieldValue.serverTimestamp()
@@ -101,7 +101,7 @@ abstract class DataDocument(
     }
 
     @Exclude
-    fun <T: DataDocument> trySave(vararg updates: Pair<String, Any?>): Task<T> {
+    fun <T: FirestoreDocument> trySave(vararg updates: Pair<String, Any?>): Task<T> {
         if (isNew()) throw IllegalStateException("Can not trySave a new object. Please call save() first.")
         val reference = requireReference()
         val values = updates.toMap().toMutableMap()
@@ -121,7 +121,7 @@ abstract class DataDocument(
                 clearDirt("updatedAt")
                 clearDirt("createdAt")
                 @Suppress("UNCHECKED_CAST")
-                this@DataDocument as T
+                this@FirestoreDocument as T
             }
         }
     }
@@ -135,20 +135,20 @@ abstract class DataDocument(
                 .build()
         }
 
-        internal val CACHE = LruCache<String, DataDocument>(100)
+        internal val CACHE = LruCache<String, FirestoreDocument>(100)
 
-        private val METADATA_PROVIDERS = mutableMapOf<String, DataMetadata>()
+        private val METADATA_PROVIDERS = mutableMapOf<String, FirestoreMetadata>()
         internal val PARCELERS = mutableMapOf<String, Parceler<*>>()
 
-        internal fun metadataProvider(klass: KClass<*>): DataMetadata {
+        internal fun metadataProvider(klass: KClass<*>): FirestoreMetadata {
             val name = klass.java.name
             if (!METADATA_PROVIDERS.containsKey(name)) {
                 val classPackage = klass.java.`package`.name
                 val className = klass.java.simpleName
-                val metadata = Class.forName("$classPackage.$className${DataMetadata.SUFFIX}")
-                METADATA_PROVIDERS[name] = metadata.newInstance() as DataMetadata
+                val metadata = Class.forName("$classPackage.$className${FirestoreMetadata.SUFFIX}")
+                METADATA_PROVIDERS[name] = metadata.newInstance() as FirestoreMetadata
             }
-            return METADATA_PROVIDERS[name] as DataMetadata
+            return METADATA_PROVIDERS[name] as FirestoreMetadata
         }
 
         fun <T: Any> registerParceler(klass: KClass<T>, parceler: Parceler<*>) {
@@ -156,9 +156,9 @@ abstract class DataDocument(
         }
 
         init {
-            registerParceler(DocumentReference::class, Parcelers.DocumentReferenceParceler)
-            registerParceler(Timestamp::class, Parcelers.TimestampParceler)
-            registerParceler(FieldValue::class, Parcelers.FieldValueParceler)
+            registerParceler(DocumentReference::class, FirestoreParcelers.DocumentReferenceParceler)
+            registerParceler(Timestamp::class, FirestoreParcelers.TimestampParceler)
+            registerParceler(FieldValue::class, FirestoreParcelers.FieldValueParceler)
         }
     }
 
@@ -190,8 +190,8 @@ abstract class DataDocument(
 
 
 @Suppress("UNCHECKED_CAST", "RedundantVisibilityModifier")
-public fun <T: DataDocument> DocumentSnapshot.toDataDocument(type: KClass<T>): T {
-    var result = DataDocument.CACHE.get(reference.id) as? T
+public fun <T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(type: KClass<T>): T {
+    var result = FirestoreDocument.CACHE.get(reference.id) as? T
     if (result == null) {
         result = type.java.newInstance()!!
         result.clearDirt() // Clear dirtyness from init().
@@ -203,14 +203,14 @@ public fun <T: DataDocument> DocumentSnapshot.toDataDocument(type: KClass<T>): T
 }
 
 @Suppress("RedundantVisibilityModifier")
-public inline fun <reified T: DataDocument> DocumentSnapshot.toDataDocument(): T {
-    return toDataDocument(T::class)
+public inline fun <reified T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(): T {
+    return toFirestoreDocument(T::class)
 }
 
-public fun <T: Any> dataListOf(vararg elements: T): DataList<T> {
-    return DataList(elements.asList())
+public fun <T: Any> firestoreListOf(vararg elements: T): FirestoreList<T> {
+    return FirestoreList(elements.asList())
 }
 
-public fun <T> dataMapOf(vararg pairs: Pair<String, T>): DataMap<T> {
-    return DataMap(pairs.toMap())
+public fun <T> firestoreMapOf(vararg pairs: Pair<String, T>): FirestoreMap<T> {
+    return FirestoreMap(pairs.toMap())
 }

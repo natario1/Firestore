@@ -6,9 +6,9 @@ package com.otaliastudios.firestore
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class DataClass
+annotation class FirestoreClass
 
-public interface DataMetadata {
+public interface FirestoreMetadata {
     fun <T> create(key: String): T?
     fun isNullable(key: String): Boolean
     fun getBindableResource(key: String): Int?

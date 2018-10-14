@@ -14,10 +14,10 @@ import com.google.firebase.firestore.Exclude
  *
  * The point of list is dirtyness.
  *
- * When an item is inserted, removed, or when a inner DataMap/List is changed,
+ * When an item is inserted, removed, or when a inner FirestoreMap/List is changed,
  * this list should be marked as dirty.
  */
-open class DataList<T: Any> @JvmOverloads constructor(
+open class FirestoreList<T: Any> @JvmOverloads constructor(
         source: List<T>? = null
 ) : /* ObservableList<T>, MutableList<T> by data, */Iterable<T>, Parcelable {
 
@@ -48,11 +48,11 @@ open class DataList<T: Any> @JvmOverloads constructor(
     internal fun collectAllValues(map: MutableMap<String, Any?>, prefix: String) {
         val list = mutableListOf<T>()
         forEach {
-            if (it is DataMap<*>) {
+            if (it is FirestoreMap<*>) {
                 val cleanMap = mutableMapOf<String, Any?>()
                 it.collectAllValues(cleanMap, "")
                 list.add(cleanMap as T)
-            } else if (it is DataList<*>) {
+            } else if (it is FirestoreList<*>) {
                 val cleanMap = mutableMapOf<String, Any?>()
                 it.collectAllValues(cleanMap, "")
                 list.add(cleanMap as T)
@@ -73,8 +73,8 @@ open class DataList<T: Any> @JvmOverloads constructor(
     internal fun isDirty(): Boolean {
         if (isDirty) return true
         for (it in this) {
-            if (it is DataList<*> && it.isDirty()) return true
-            if (it is DataMap<*> && it.isDirty()) return true
+            if (it is FirestoreList<*> && it.isDirty()) return true
+            if (it is FirestoreMap<*> && it.isDirty()) return true
         }
         return false
     }
@@ -82,35 +82,35 @@ open class DataList<T: Any> @JvmOverloads constructor(
     internal fun clearDirt() {
         isDirty = false
         for (it in this) {
-            if (it is DataList<*>) it.clearDirt()
-            if (it is DataMap<*>) it.clearDirt()
+            if (it is FirestoreList<*>) it.clearDirt()
+            if (it is FirestoreMap<*>) it.clearDirt()
         }
     }
 
-    private fun <K> createDataMap(): DataMap<K> {
-        val map = try { onCreateDataMap<K>() } catch (e: Exception) {
-            DataMap<K>()
+    private fun <K> createFirestoreMap(): FirestoreMap<K> {
+        val map = try { onCreateFirestoreMap<K>() } catch (e: Exception) {
+            FirestoreMap<K>()
         }
         map.clearDirt()
         return map
     }
 
-    private fun <K: Any> createDataList(): DataList<K> {
-        val list = try { onCreateDataList<K>() } catch (e: Exception) {
-            DataList<K>()
+    private fun <K: Any> createFirestoreList(): FirestoreList<K> {
+        val list = try { onCreateFirestoreList<K>() } catch (e: Exception) {
+            FirestoreList<K>()
         }
         list.clearDirt()
         return list
     }
 
-    protected open fun <K> onCreateDataMap(): DataMap<K> {
-        val provider = DataDocument.metadataProvider(this::class)
-        return provider.createInnerType<DataMap<K>>() ?: DataMap()
+    protected open fun <K> onCreateFirestoreMap(): FirestoreMap<K> {
+        val provider = FirestoreDocument.metadataProvider(this::class)
+        return provider.createInnerType<FirestoreMap<K>>() ?: FirestoreMap()
     }
 
-    protected open fun <K: Any> onCreateDataList(): DataList<K> {
-        val provider = DataDocument.metadataProvider(this::class)
-        return provider.createInnerType<DataList<K>>() ?: DataList()
+    protected open fun <K: Any> onCreateFirestoreList(): FirestoreList<K> {
+        val provider = FirestoreDocument.metadataProvider(this::class)
+        return provider.createInnerType<FirestoreList<K>>() ?: FirestoreList()
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -118,15 +118,15 @@ open class DataList<T: Any> @JvmOverloads constructor(
         data.clear()
         for (value in values) {
             if (value is Map<*, *> && value.keys.all { it is String }) {
-                val child = createDataMap<Any?>() as T
+                val child = createFirestoreMap<Any?>() as T
                 data.add(child)
-                child as DataMap<Any?>
+                child as FirestoreMap<Any?>
                 value as Map<String, Any?>
                 child.mergeValues(value)
             } else if (value is List<*>) {
-                val child = createDataList<Any>() as T
+                val child = createFirestoreList<Any>() as T
                 data.add(child)
-                child as DataList<Any>
+                child as FirestoreList<Any>
                 value as List<Any>
                 child.mergeValues(value)
             } else {
@@ -137,7 +137,7 @@ open class DataList<T: Any> @JvmOverloads constructor(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        return other is DataList<*> &&
+        return other is FirestoreList<*> &&
                 other.data.size == data.size &&
                 other.data.containsAll(data) &&
                 other.isDirty == isDirty
@@ -170,8 +170,8 @@ open class DataList<T: Any> @JvmOverloads constructor(
                 val className = value::class.java.name
                 parcel.writeString(className)
                 @Suppress("UNCHECKED_CAST")
-                val parceler = DataDocument.PARCELERS[className] as? DataDocument.Parceler<Any?>
-                if (parceler == null) throw IllegalStateException("Can not parcel type ${value.javaClass}. Please register a parceler using DataDocument.registerParceler.")
+                val parceler = FirestoreDocument.PARCELERS[className] as? FirestoreDocument.Parceler<Any?>
+                if (parceler == null) throw IllegalStateException("Can not parcel type ${value.javaClass}. Please register a parceler using FirestoreDocument.registerParceler.")
                 parceler.write(value, parcel, 0)
             }
         }
@@ -185,12 +185,12 @@ open class DataList<T: Any> @JvmOverloads constructor(
     companion object {
 
         @JvmField
-        public val CREATOR = object : Parcelable.Creator<DataList<Any>> {
+        public val CREATOR = object : Parcelable.Creator<FirestoreList<Any>> {
 
-            override fun createFromParcel(parcel: Parcel): DataList<Any> {
+            override fun createFromParcel(parcel: Parcel): FirestoreList<Any> {
                 val klass = Class.forName(parcel.readString())
                 @Suppress("UNCHECKED_CAST")
-                val dataList = klass.newInstance() as DataList<Any>
+                val dataList = klass.newInstance() as FirestoreList<Any>
                 dataList.isDirty = parcel.readInt() == 1
                 val count = parcel.readInt()
                 repeat(count) {
@@ -200,8 +200,8 @@ open class DataList<T: Any> @JvmOverloads constructor(
                         else -> {
                             val className = parcel.readString()
                             @Suppress("UNCHECKED_CAST")
-                            val parceler = DataDocument.PARCELERS[className] as? DataDocument.Parceler<Any>
-                            if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using DataDocument.registerParceler.")
+                            val parceler = FirestoreDocument.PARCELERS[className] as? FirestoreDocument.Parceler<Any>
+                            if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using FirestoreDocument.registerParceler.")
                             parceler.create(parcel)
                         }
                     })
@@ -212,7 +212,7 @@ open class DataList<T: Any> @JvmOverloads constructor(
                 return dataList
             }
 
-            override fun newArray(size: Int): Array<DataList<Any>?> {
+            override fun newArray(size: Int): Array<FirestoreList<Any>?> {
                 return Array(size, { null })
             }
         }

@@ -4,12 +4,11 @@
 
 package com.otaliastudios.firestore.compiler
 
-import com.otaliastudios.firestore.DataClass
-import com.otaliastudios.firestore.DataMetadata
+import com.otaliastudios.firestore.FirestoreClass
+import com.otaliastudios.firestore.FirestoreMetadata
 import com.squareup.kotlinpoet.*
 import kotlinx.metadata.*
 import kotlinx.metadata.ClassName
-import kotlinx.metadata.impl.extensions.MetadataExtensions
 import kotlinx.metadata.jvm.KotlinClassHeader
 import kotlinx.metadata.jvm.KotlinClassMetadata
 import javax.annotation.processing.*
@@ -44,8 +43,8 @@ class DataProcessor : AbstractProcessor() {
         val SUPPRESS = Class.forName("kotlin.Suppress") as Class<Annotation>
         val BINDABLE = Class.forName("androidx.databinding.Bindable") as Class<Annotation>
 
-        const val DATA_MAP = "com.otaliastudios.firestore.DataMap"
-        const val DATA_LIST = "com.otaliastudios.firestore.DataList"
+        const val DATA_MAP = "com.otaliastudios.firestore.FirestoreMap"
+        const val DATA_LIST = "com.otaliastudios.firestore.FirestoreList"
         const val DATABINDING_BR = "androidx.databinding.library.baseAdapters.BR"
     }
 
@@ -54,12 +53,12 @@ class DataProcessor : AbstractProcessor() {
         return toString().replace('/', '.')
     }
 
-    private fun ClassName.isDataMapOrDataList(): Boolean {
+    private fun ClassName.isFirestoreMapOrFirestoreList(): Boolean {
         val qualifiedClassName = readable()
         return qualifiedClassName == DATA_MAP || qualifiedClassName == DATA_LIST
     }
 
-    private fun DeclaredType.isDataMapOrDataList(): Boolean {
+    private fun DeclaredType.isFirestoreMapOrFirestoreList(): Boolean {
         val qualifiedClassName = getQualifiedClassName()
         return qualifiedClassName == DATA_MAP || qualifiedClassName == DATA_LIST
     }
@@ -86,7 +85,7 @@ class DataProcessor : AbstractProcessor() {
     }
 
     override fun process(set: Set<TypeElement>, environment: RoundEnvironment): Boolean {
-        val elements = environment.getElementsAnnotatedWith(DataClass::class.java)
+        val elements = environment.getElementsAnnotatedWith(FirestoreClass::class.java)
         for (element in elements) {
             if (element.kind != ElementKind.CLASS) continue
             val header = element.readHeader()!!
@@ -103,7 +102,7 @@ class DataProcessor : AbstractProcessor() {
     /**
      * We need a map from declared property to return type, this way we can:
      * - instantiate a default value when get() is called
-     * - instantiate the correct DataMap or DataList subclass when we find one from declared properties
+     * - instantiate the correct FirestoreMap or FirestoreList subclass when we find one from declared properties
      */
     private fun processClass(element: TypeElement): KmClassVisitor {
         val map = mutableMapOf<String, PropertyInfo>()
@@ -118,15 +117,15 @@ class DataProcessor : AbstractProcessor() {
         val packageName = (enclosing as PackageElement).qualifiedName.toString()
         messager.print("Found package name: $packageName")
 
-        // Cycle up the superclasses until we find either DataMap or DataList.
+        // Cycle up the superclasses until we find either FirestoreMap or FirestoreList.
         // We are interested in their type parameter.
         var parent = element.asType() as DeclaredType
-        while (!parent.isDataMapOrDataList()) {
+        while (!parent.isFirestoreMapOrFirestoreList()) {
             parent = parent.getSuperDeclaredType()
         }
         (parent.typeArguments.first() as DeclaredType)
         val type = parent.typeArguments.first().toString()
-        messager.print("Found DataMap/DataList parameter: $type")
+        messager.print("Found FirestoreMap/FirestoreList parameter: $type")
 
         // Visit the class itself using Kotlin metadata.
         // Cycle through properties to get default values and bindable references.
@@ -154,24 +153,24 @@ class DataProcessor : AbstractProcessor() {
 
             override fun visitEnd() {
                 super.visitEnd()
-                writeClass(className + DataMetadata.SUFFIX, packageName, map, type)
+                writeClass(className + FirestoreMetadata.SUFFIX, packageName, map, type)
             }
         }
     }
 
     private fun returnTypeVisitor(key: String, nullable: Boolean, bindable: Boolean, map: MutableMap<String, PropertyInfo>) = object: KmTypeVisitor() {
 
-        private var isDataMapOrDataList: Boolean = false
+        private var isFirestoreMapOrFirestoreList: Boolean = false
         private var returnClassName: String = ""
 
         override fun visitClass(name: ClassName) {
             returnClassName = name.readable()
-            isDataMapOrDataList = name.isDataMapOrDataList()
+            isFirestoreMapOrFirestoreList = name.isFirestoreMapOrFirestoreList()
         }
 
         override fun visitArgument(flags: Flags, variance: KmVariance): KmTypeVisitor? {
-            return if (!isDataMapOrDataList) null else object: KmTypeVisitor() {
-                // This is either DataList or DataMap. This function will be called only once.
+            return if (!isFirestoreMapOrFirestoreList) null else object: KmTypeVisitor() {
+                // This is either FirestoreList or FirestoreMap. This function will be called only once.
                 // This also means that the class will not go through the DataProcessor.
                 // So we must inspect generics here.
 
@@ -244,7 +243,7 @@ class DataProcessor : AbstractProcessor() {
         }
 
         val classBuilder = TypeSpec.classBuilder(className).apply {
-            addSuperinterface(DataMetadata::class)
+            addSuperinterface(FirestoreMetadata::class)
             addFunction(createFunction.build())
             addFunction(isNullableFunction.build())
             addFunction(getBindableResourceFunction.build())
@@ -266,7 +265,7 @@ class DataProcessor : AbstractProcessor() {
     }
 
     override fun getSupportedAnnotationTypes(): MutableSet<String> {
-        return mutableSetOf(DataClass::class.qualifiedName!!)
+        return mutableSetOf(FirestoreClass::class.qualifiedName!!)
     }
 
     override fun getSupportedSourceVersion(): SourceVersion {
