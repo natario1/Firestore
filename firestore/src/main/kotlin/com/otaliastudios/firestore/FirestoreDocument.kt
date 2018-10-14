@@ -52,10 +52,14 @@ abstract class FirestoreDocument(
     var updatedAt: Timestamp? by this
 
     @Exclude
-    fun delete(): Task<Void> {
+    fun delete(): Task<Unit> {
         return when {
             isNew() -> throw IllegalStateException("Can not delete a new object.")
-            else -> getReference().delete()
+            else -> getReference().delete().continueWith {
+                if (!it.isSuccessful) {
+                    throw it.exception!!
+                }
+            }
         }
     }
 
