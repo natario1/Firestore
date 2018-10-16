@@ -40,7 +40,7 @@ ext {
     kotlinPoetVersion = '0.7.0'
     kotlinxMetadataVersion = '0.0.4'
     firestoreVersion = '17.1.1'
-    libVersion = "0.2.0"
+    libVersion = "0.2.1"
     libGroup = 'com.otaliastudios'
     githubUrl = "https://github.com/natario1/Firestore"
     githubGit = "https://github.com/natario1/Firestore.git"
