@@ -154,9 +154,14 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
     override fun describeContents() = 0
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
+        // Write class name
         parcel.writeString(this::class.java.name)
+
+        // Write size and dirtiness
         parcel.writeInt(if (isDirty) 1 else 0)
         parcel.writeInt(size)
+
+        // Write actual data
         val checks = Parcel.obtain()
         for (value in data) {
             val canWrite = try {
@@ -175,45 +180,57 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
                 parceler.write(value, parcel, 0)
             }
         }
+        checks.recycle()
 
+        // Extra bundle
         val bundle = Bundle()
         onWriteToBundle(bundle)
         parcel.writeBundle(bundle)
-        checks.recycle()
     }
 
     companion object {
 
         @JvmField
-        public val CREATOR = object : Parcelable.Creator<FirestoreList<Any>> {
+        public val CREATOR = object : Parcelable.ClassLoaderCreator<FirestoreList<Any>> {
 
-            override fun createFromParcel(parcel: Parcel): FirestoreList<Any> {
-                val klass = Class.forName(parcel.readString())
+            override fun createFromParcel(source: Parcel): FirestoreList<Any> {
+                // This should never be called by the framework.
+                return createFromParcel(source, FirestoreList::class.java.classLoader!!)
+            }
+
+            override fun createFromParcel(parcel: Parcel, loader: ClassLoader): FirestoreList<Any> {
+                // Read class name
+                val klass = Class.forName(parcel.readString()!!)
                 @Suppress("UNCHECKED_CAST")
                 val dataList = klass.newInstance() as FirestoreList<Any>
+
+                // Read dirtyness and size
                 dataList.isDirty = parcel.readInt() == 1
                 val count = parcel.readInt()
+
+                // Read actual data
                 repeat(count) {
-                    val what = parcel.readString()
-                    dataList.data.add(when {
-                        what == "value" -> parcel.readValue(dataList::class.java.classLoader)
-                        else -> {
-                            val className = parcel.readString()
-                            @Suppress("UNCHECKED_CAST")
-                            val parceler = FirestoreDocument.PARCELERS[className] as? FirestoreDocument.Parceler<Any>
-                            if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using FirestoreDocument.registerParceler.")
-                            parceler.create(parcel)
-                        }
+                    val what = parcel.readString()!!
+                    dataList.data.add(if (what == "value") {
+                        parcel.readValue(loader)
+                    } else {
+                        // What is the class name of the object that was written through a parceler.
+                        @Suppress("UNCHECKED_CAST")
+                        val parceler = FirestoreDocument.PARCELERS[what] as? FirestoreDocument.Parceler<Any>
+                        if (parceler == null) throw IllegalStateException("Can not parcel type $what. " +
+                                "Please register a parceler using FirestoreDocument.registerParceler.")
+                        parceler.create(parcel)
                     })
                 }
 
-                val bundle = parcel.readBundle(dataList::class.java.classLoader)
+                // Extra bundle
+                val bundle = parcel.readBundle(loader)!!
                 dataList.onReadFromBundle(bundle)
                 return dataList
             }
 
             override fun newArray(size: Int): Array<FirestoreList<Any>?> {
-                return Array(size, { null })
+                return Array(size) { null }
             }
         }
     }

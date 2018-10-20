@@ -249,7 +249,10 @@ open class FirestoreMap<T>(
     override fun describeContents() = 0
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
+        // Write class name
         parcel.writeString(this::class.java.name)
+
+        // Write dirty data
         parcel.writeInt(dirty.size)
         parcel.writeStringArray(dirty.toTypedArray())
 
@@ -269,23 +272,29 @@ open class FirestoreMap<T>(
                 parcel.writeString(className)
                 @Suppress("UNCHECKED_CAST")
                 val parceler = FirestoreDocument.PARCELERS[className] as? FirestoreDocument.Parceler<Any?>
-                if (parceler == null) throw IllegalStateException("Can not parcel type $className. Please register a parceler using FirestoreDocument.registerParceler.")
+                if (parceler == null) throw IllegalStateException("Can not parcel type $className. " +
+                        "Please register a parceler using FirestoreDocument.registerParceler.")
                 parceler.write(value, parcel, 0)
             }
         }
+        checks.recycle()
 
         val bundle = Bundle()
         onWriteToBundle(bundle)
         parcel.writeBundle(bundle)
-        checks.recycle()
     }
 
     companion object {
         @JvmField
-        public val CREATOR = object : Parcelable.Creator<FirestoreMap<Any?>> {
+        public val CREATOR = object : Parcelable.ClassLoaderCreator<FirestoreMap<Any?>> {
+
+            override fun createFromParcel(source: Parcel): FirestoreMap<Any?> {
+                // This should never be called by the framework.
+                return createFromParcel(source, FirestoreMap::class.java.classLoader!!)
+            }
 
             @Suppress("UNCHECKED_CAST")
-            override fun createFromParcel(parcel: Parcel): FirestoreMap<Any?> {
+            override fun createFromParcel(parcel: Parcel, loader: ClassLoader): FirestoreMap<Any?> {
                 // Read class and create the map object.
                 val klass = Class.forName(parcel.readString()!!)
                 val firestoreMap = klass.newInstance() as FirestoreMap<Any?>
@@ -301,7 +310,7 @@ open class FirestoreMap<T>(
                     val key = parcel.readString()!!
                     val what = parcel.readString()!!
                     values[key] = if (what == "value") {
-                        parcel.readValue(firestoreMap::class.java.classLoader)
+                        parcel.readValue(loader)
                     } else {
                         // What is the class name of the object that was written through a parceler.
                         val parceler = FirestoreDocument.PARCELERS[what] as? FirestoreDocument.Parceler<Any?>
@@ -318,13 +327,13 @@ open class FirestoreMap<T>(
                 firestoreMap.data.putAll(values)
 
                 // Read the extra bundle
-                val bundle = parcel.readBundle(firestoreMap::class.java.classLoader)
+                val bundle = parcel.readBundle(loader)
                 firestoreMap.onReadFromBundle(bundle!!)
                 return firestoreMap
             }
 
             override fun newArray(size: Int): Array<FirestoreMap<Any?>?> {
-                return Array(size, { null })
+                return Array(size) { null }
             }
         }
     }
