@@ -6,7 +6,6 @@ package com.otaliastudios.firestore
 
 import android.annotation.SuppressLint
 import android.os.Bundle
-import android.os.Parcel
 import android.util.LruCache
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
@@ -142,7 +141,6 @@ abstract class FirestoreDocument(
         internal val CACHE = LruCache<String, FirestoreDocument>(100)
 
         private val METADATA_PROVIDERS = mutableMapOf<String, FirestoreMetadata>()
-        internal val PARCELERS = mutableMapOf<String, Parceler<*>>()
 
         internal fun metadataProvider(klass: KClass<*>): FirestoreMetadata {
             val name = klass.java.name
@@ -155,14 +153,10 @@ abstract class FirestoreDocument(
             return METADATA_PROVIDERS[name] as FirestoreMetadata
         }
 
-        fun <T: Any> registerParceler(klass: KClass<T>, parceler: Parceler<*>) {
-            PARCELERS[klass.java.name] = parceler
-        }
-
         init {
-            registerParceler(DocumentReference::class, FirestoreParcelers.DocumentReferenceParceler)
-            registerParceler(Timestamp::class, FirestoreParcelers.TimestampParceler)
-            registerParceler(FieldValue::class, FirestoreParcelers.FieldValueParceler)
+            FirestoreParcelers.add(DocumentReference::class, DocumentReferenceParceler)
+            FirestoreParcelers.add(Timestamp::class, TimestampParceler)
+            FirestoreParcelers.add(FieldValue::class, FieldValueParceler)
         }
     }
 
@@ -178,43 +172,4 @@ abstract class FirestoreDocument(
         collection = bundle.getString("collection", null)
     }
 
-    interface Parceler<T> {
-
-        /**
-         * Writes the [T] instance state to the [parcel].
-         */
-        fun write(data: T, parcel: Parcel, flags: Int)
-
-        /**
-         * Reads the [T] instance state from the [parcel], constructs the new [T] instance and returns it.
-         */
-        fun create(parcel: Parcel): T
-    }
-}
-
-
-@Suppress("UNCHECKED_CAST", "RedundantVisibilityModifier")
-public fun <T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(type: KClass<T>): T {
-    var result = FirestoreDocument.CACHE.get(reference.id) as? T
-    if (result == null) {
-        result = type.java.newInstance()!!
-        result.clearDirt() // Clear dirtyness from init().
-    }
-    result.id = reference.id
-    result.collection = reference.parent.path
-    result.mergeValues(data!!)
-    return result
-}
-
-@Suppress("RedundantVisibilityModifier")
-public inline fun <reified T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(): T {
-    return toFirestoreDocument(T::class)
-}
-
-public fun <T: Any> firestoreListOf(vararg elements: T): FirestoreList<T> {
-    return FirestoreList(elements.asList())
-}
-
-public fun <T> firestoreMapOf(vararg pairs: Pair<String, T>): FirestoreMap<T> {
-    return FirestoreMap(pairs.toMap())
 }

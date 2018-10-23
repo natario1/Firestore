@@ -9,62 +9,68 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlin.reflect.KClass
 
 /**
- * Utility methods to parcel data.
+ * Parceling engine.
  */
 object FirestoreParcelers {
 
-    /**
-     * Parcels a possibly null DocumentReference.
-     * Uses FirebaseFirestore.getInstance().
-     */
-    object DocumentReferenceParceler: FirestoreDocument.Parceler<DocumentReference> {
+    internal val MAP = mutableMapOf<String, FirestoreParceler<*>>()
 
-        override fun create(parcel: Parcel): DocumentReference {
-            return FirebaseFirestore.getInstance().document(parcel.readString())
+    fun <T: Any> add(klass: KClass<T>, parceler: FirestoreParceler<T>) {
+        MAP[klass.java.name] = parceler
+    }
+
+    private const val NULL = 0
+    private const val PARCELER = 1
+    private const val VALUE = 2
+
+    internal fun write(parcel: Parcel, value: Any?) {
+        if (value == null) {
+            FirestoreLogger.v("writeParcel: value is null.")
+            parcel.writeInt(NULL)
+            return
         }
-
-        override fun write(data: DocumentReference, parcel: Parcel, flags: Int) {
-            parcel.writeString(data.path)
+        val klass = value::class.java.name
+        if (MAP.containsKey(klass)) {
+            FirestoreLogger.v("writeParcel: value will be written with parceler for class $klass.")
+            parcel.writeInt(PARCELER)
+            parcel.writeString(klass)
+            @Suppress("UNCHECKED_CAST")
+            val parceler = MAP[klass] as FirestoreParceler<Any>
+            parceler.write(value, parcel, 0)
+            return
+        }
+        try {
+            FirestoreLogger.v("writeParcel: value will be written with writeValue().")
+            parcel.writeInt(VALUE)
+            parcel.writeValue(value)
+        } catch (e: Exception) {
+            FirestoreLogger.e(e, "Could not write value $value. You need to add a FirestoreParceler.")
+            throw e
         }
     }
 
-    /**
-     * Parcels a possibly null Timestamp.
-     */
-    object TimestampParceler: FirestoreDocument.Parceler<Timestamp> {
-
-        override fun create(parcel: Parcel): Timestamp {
-            return Timestamp(parcel.readLong(), parcel.readInt())
+    internal fun read(parcel: Parcel, loader: ClassLoader): Any? {
+        val what = parcel.readInt()
+        if (what == NULL) {
+            FirestoreLogger.v("readParcel: value is null.")
+            return null
         }
-
-        override fun write(data: Timestamp, parcel: Parcel, flags: Int) {
-            parcel.writeLong(data.seconds)
-            parcel.writeInt(data.nanoseconds)
+        if (what == PARCELER) {
+            val klass = parcel.readString()!!
+            @Suppress("UNCHECKED_CAST")
+            val parceler = MAP[klass] as FirestoreParceler<Any>
+            return parceler.create(parcel)
         }
+        if (what == VALUE) {
+            return parcel.readValue(loader)
+        }
+        val e = IllegalStateException("Error while reading parcel. Unexpected control int: $what")
+        FirestoreLogger.e(e, e.message!!)
+        throw e
     }
 
-    /**
-     * Parcels a FieldValue
-     */
-    object FieldValueParceler: FirestoreDocument.Parceler<FieldValue> {
 
-        override fun create(parcel: Parcel): FieldValue {
-            val what = parcel.readString()
-            when (what) {
-                "delete" -> return FieldValue.delete()
-                "timestamp" -> return FieldValue.serverTimestamp()
-                else -> throw RuntimeException("Unknown FieldValue value: $what")
-            }
-        }
-
-        override fun write(data: FieldValue, parcel: Parcel, flags: Int) {
-            if (data == FieldValue.delete()) {
-                parcel.writeString("delete")
-            } else if (data == FieldValue.serverTimestamp()) {
-                parcel.writeString("timestamp")
-            } else throw RuntimeException("Cant parcel this FieldValue: $this")
-        }
-    }
 }
