@@ -9,6 +9,7 @@ import android.os.Parcel
 import android.os.Parcelable
 import androidx.databinding.BaseObservable
 import com.google.firebase.firestore.Exclude
+import java.util.LinkedHashMap
 import kotlin.reflect.KProperty
 
 /**
@@ -23,10 +24,10 @@ open class FirestoreMap<T>(
     private val dirty: MutableSet<String> = mutableSetOf()
 
     @get:Exclude
-    val keys = data.keys
+    val keys get() = data.keys
 
     @get:Exclude
-    val size = data.size
+    val size get() = data.size
 
     init {
         if (source != null) {
@@ -257,15 +258,16 @@ open class FirestoreMap<T>(
         parcel.writeString(this::class.java.name)
 
         // Write dirty data
-        FirestoreLogger.v("Map $hashcode: writing dirty count ${dirty.size} and dirty keys.")
+        FirestoreLogger.v("Map $hashcode: writing dirty count ${dirty.size} and dirty keys ${dirty.toTypedArray().joinToString()} ${dirty.toTypedArray().size}.")
         parcel.writeInt(dirty.size)
         parcel.writeStringArray(dirty.toTypedArray())
 
-        FirestoreLogger.v("Map $hashcode: writing size.")
+        FirestoreLogger.v("Map $hashcode: writing data size. $size")
         parcel.writeInt(size)
         for ((key, value) in data) {
             parcel.writeString(key)
-            FirestoreParcelers.write(parcel, value)
+            FirestoreLogger.v("Map $hashcode: writing value for key $key...")
+            FirestoreParcelers.write(parcel, value, hashcode.toString())
         }
 
         val bundle = Bundle()
@@ -275,6 +277,8 @@ open class FirestoreMap<T>(
     }
 
     companion object {
+
+        @Suppress("unused")
         @JvmField
         public val CREATOR = object : Parcelable.ClassLoaderCreator<FirestoreMap<Any?>> {
 
@@ -296,15 +300,17 @@ open class FirestoreMap<T>(
                 // Read dirty data
                 val dirty = Array(parcel.readInt()) { "" }
                 parcel.readStringArray(dirty)
+                FirestoreLogger.v("Map $hashcode: read dirty count ${dirty.size} and array ${dirty.joinToString()}")
 
                 // Read actual data
                 val count = parcel.readInt()
-                FirestoreLogger.v("Map $hashcode: read dirtyness ${dirty.size} and size $count")
+                FirestoreLogger.v("Map $hashcode: read data size $count")
 
                 val values = HashMap<String, Any?>(count)
                 repeat(count) {
                     val key = parcel.readString()!!
-                    values[key] = FirestoreParcelers.read(parcel, loader)
+                    FirestoreLogger.v("Map $hashcode: reading value for key $key...")
+                    values[key] = FirestoreParcelers.read(parcel, loader, hashcode.toString())
                 }
 
                 // Set both

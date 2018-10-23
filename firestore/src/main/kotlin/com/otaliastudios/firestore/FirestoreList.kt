@@ -24,7 +24,7 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
     private val data: MutableList<T> = mutableListOf()
 
     @get:Exclude
-    val size = data.size
+    val size get() = data.size
 
     init {
         if (source != null) {
@@ -168,7 +168,8 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
 
         // Write actual data
         for (value in data) {
-            FirestoreParcelers.write(parcel, value)
+            FirestoreLogger.v("List $hashcode: writing value ${value}")
+            FirestoreParcelers.write(parcel, value, hashcode.toString())
         }
 
         // Extra bundle
@@ -180,6 +181,7 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
 
     companion object {
 
+        @Suppress("unused")
         @JvmField
         public val CREATOR = object : Parcelable.ClassLoaderCreator<FirestoreList<Any>> {
 
@@ -204,7 +206,8 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
 
                 // Read actual data
                 repeat(count) {
-                    dataList.data.add(FirestoreParcelers.read(parcel, loader)!!)
+                    FirestoreLogger.v("List $hashcode: reading value...")
+                    dataList.data.add(FirestoreParcelers.read(parcel, loader, hashcode.toString())!!)
                 }
 
                 // Extra bundle
