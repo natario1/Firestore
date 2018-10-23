@@ -52,6 +52,7 @@ dependencies {
     api "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
     // api "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
     api "com.google.firebase:firebase-firestore:$firestoreVersion"
+    api "com.jakewharton.timber:timber:$timberVersion"
 }
 
 task sourcesJar(type: Jar) {

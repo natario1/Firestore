@@ -154,10 +154,15 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
     override fun describeContents() = 0
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
+        val hashcode = hashCode()
+        parcel.writeInt(hashcode)
+
         // Write class name
+        FirestoreLogger.v("List $hashcode: writing class ${this::class.java.name}")
         parcel.writeString(this::class.java.name)
 
         // Write size and dirtiness
+        FirestoreLogger.v("List $hashcode: writing dirty $isDirty and size $size")
         parcel.writeInt(if (isDirty) 1 else 0)
         parcel.writeInt(size)
 
@@ -166,17 +171,24 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
         for (value in data) {
             val canWrite = try {
                 checks.writeValue(value)
+                FirestoreLogger.v("List $hashcode: can write this value $value")
                 true
-            } catch (e: Exception) { false }
+            } catch (e: Exception) {
+                FirestoreLogger.v("List $hashcode: can NOT write this value $value. Will use a parceler.")
+                false
+            }
             if (canWrite) {
+                FirestoreLogger.v("List $hashcode: writing 'value' and the actual value.")
                 parcel.writeString("value")
                 parcel.writeValue(value)
             } else {
+                FirestoreLogger.v("List $hashcode: writing unwritable value class: ${value::class.java.name}")
                 val className = value::class.java.name
                 parcel.writeString(className)
                 @Suppress("UNCHECKED_CAST")
                 val parceler = FirestoreDocument.PARCELERS[className] as? FirestoreDocument.Parceler<Any?>
                 if (parceler == null) throw IllegalStateException("Can not parcel type ${value.javaClass}. Please register a parceler using FirestoreDocument.registerParceler.")
+                FirestoreLogger.v("List $hashcode: writing unwritable value using parceler ${parceler::class.java.name}")
                 parceler.write(value, parcel, 0)
             }
         }
@@ -185,6 +197,7 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
         // Extra bundle
         val bundle = Bundle()
         onWriteToBundle(bundle)
+        FirestoreLogger.v("List $hashcode: writing extra bundle. Size is ${bundle.size()}")
         parcel.writeBundle(bundle)
     }
 
@@ -195,36 +208,45 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
 
             override fun createFromParcel(source: Parcel): FirestoreList<Any> {
                 // This should never be called by the framework.
+                FirestoreLogger.e("List: received call to createFromParcel without classLoader.")
                 return createFromParcel(source, FirestoreList::class.java.classLoader!!)
             }
 
             override fun createFromParcel(parcel: Parcel, loader: ClassLoader): FirestoreList<Any> {
+                val hashcode = parcel.readInt()
                 // Read class name
                 val klass = Class.forName(parcel.readString()!!)
+                FirestoreLogger.v("List $hashcode: read class ${klass.simpleName}")
                 @Suppress("UNCHECKED_CAST")
                 val dataList = klass.newInstance() as FirestoreList<Any>
 
                 // Read dirtyness and size
                 dataList.isDirty = parcel.readInt() == 1
                 val count = parcel.readInt()
+                FirestoreLogger.v("List $hashcode: read dirtyness ${dataList.isDirty} and size $count")
 
                 // Read actual data
                 repeat(count) {
                     val what = parcel.readString()!!
                     dataList.data.add(if (what == "value") {
+                        FirestoreLogger.v("List $hashcode: read the 'value' string. Reading the actual value.")
                         parcel.readValue(loader)
                     } else {
                         // What is the class name of the object that was written through a parceler.
+                        FirestoreLogger.v("List $hashcode: read the unwritable value class $what.")
                         @Suppress("UNCHECKED_CAST")
                         val parceler = FirestoreDocument.PARCELERS[what] as? FirestoreDocument.Parceler<Any>
                         if (parceler == null) throw IllegalStateException("Can not parcel type $what. " +
                                 "Please register a parceler using FirestoreDocument.registerParceler.")
+                        FirestoreLogger.v("List $hashcode: reading unwritable value with parceler ${parceler::class.java.name}.")
                         parceler.create(parcel)
                     })
                 }
 
                 // Extra bundle
+                FirestoreLogger.v("List $hashcode: reading extra bundle.")
                 val bundle = parcel.readBundle(loader)!!
+                FirestoreLogger.v("List $hashcode: read extra bundle, size ${bundle.size()}")
                 dataList.onReadFromBundle(bundle)
                 return dataList
             }
