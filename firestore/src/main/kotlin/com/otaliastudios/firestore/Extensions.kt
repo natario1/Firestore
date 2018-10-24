@@ -5,6 +5,7 @@ import kotlin.reflect.KClass
 
 @Suppress("UNCHECKED_CAST", "RedundantVisibilityModifier")
 public fun <T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(type: KClass<T>, cache: Boolean = true): T {
+    var needsCacheState = false
     val result = if (cache) {
         val cached = FirestoreDocument.CACHE.get(reference.id) as? T
         if (cached == null) {
@@ -12,9 +13,24 @@ public fun <T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(type: KCl
             val new = type.java.newInstance()
             new.clearDirt() // Clear dirtyness from init().
             FirestoreDocument.CACHE.put(reference.id, new)
+            new.cacheState = FirestoreDocument.CacheState.FRESH
             new
         } else {
-            FirestoreLogger.v("Id ${reference.id} asked for cache. Was found.")
+            if (metadata.isFromCache) {
+                FirestoreLogger.v("Id ${reference.id} asked for cache. Was found. Using CACHED_EQUAL because metadata.isFromCache.")
+                cached.cacheState = FirestoreDocument.CacheState.CACHED_EQUAL
+            } else {
+                needsCacheState = true
+                /* val map = mutableMapOf<String, Any?>()
+                cached.collectAllValues(map, "")
+                cached.cacheState = if (map.any { get(it.key) != it.value }) {
+                    FirestoreLogger.v("Id ${reference.id} asked for cache. Was found. Using CACHED_CHANGED because some values were different.")
+                    FirestoreDocument.CacheState.CACHED_CHANGED
+                } else {
+                    FirestoreLogger.v("Id ${reference.id} asked for cache. Was found. Using CACHED_EQUAL because everything matches.")
+                    FirestoreDocument.CacheState.CACHED_EQUAL
+                } */
+            }
             cached
         }
     } else {
@@ -22,11 +38,21 @@ public fun <T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(type: KCl
         val new = type.java.newInstance()
         new.clearDirt() // Clear dirtyness from init().
         FirestoreDocument.CACHE.put(reference.id, new)
+        new.cacheState = FirestoreDocument.CacheState.FRESH
         new
     }
     result.id = reference.id
     result.collection = reference.parent.path
-    result.mergeValues(data!!)
+    val changed = result.mergeValues(data!!, needsCacheState)
+    if (needsCacheState) {
+        if (changed) {
+            FirestoreLogger.v("Id ${reference.id} NEW METHOD: Would be CACHED_CHANGED.")
+            FirestoreDocument.CacheState.CACHED_CHANGED
+        } else {
+            FirestoreLogger.v("Id ${reference.id} NEW METHOD: Would be CACHED_EQUAL.")
+            FirestoreDocument.CacheState.CACHED_EQUAL
+        }
+    }
     return result
 }
 

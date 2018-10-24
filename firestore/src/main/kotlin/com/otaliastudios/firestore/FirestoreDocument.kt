@@ -14,19 +14,13 @@ import com.google.firebase.firestore.*
 import kotlin.reflect.KClass
 
 /**
- * TODO: find a better solution for parcelables.
+ * The base document class.
  */
 abstract class FirestoreDocument(
         @get:Exclude var collection: String? = null,
         @get:Exclude var id: String? = null,
         source: Map<String, Any?>? = null
-) : FirestoreMap<Any?>() {
-
-    init {
-        if (source != null) {
-            mergeValues(source)
-        }
-    }
+) : FirestoreMap<Any?>(source = source) {
 
     @Suppress("MemberVisibilityCanBePrivate", "RedundantModalityModifier")
     @Exclude
@@ -42,6 +36,7 @@ abstract class FirestoreDocument(
         }
     }
 
+    @Exclude
     fun getReference(): DocumentReference {
         if (id == null) throw IllegalStateException("Cant return reference for unsaved data.")
         return requireReference()
@@ -49,6 +44,11 @@ abstract class FirestoreDocument(
 
     var createdAt: Timestamp? by this
     var updatedAt: Timestamp? by this
+
+    internal var cacheState: CacheState = CacheState.FRESH
+
+    @Exclude
+    fun getCacheState() = cacheState
 
     @Exclude
     fun delete(): Task<Unit> {
@@ -129,6 +129,14 @@ abstract class FirestoreDocument(
         }
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        return other is FirestoreDocument &&
+                other.id == this.id &&
+                other.collection == this.collection &&
+                super.equals(other)
+    }
+
     companion object {
 
         @SuppressLint("StaticFieldLeak")
@@ -172,4 +180,7 @@ abstract class FirestoreDocument(
         collection = bundle.getString("collection", null)
     }
 
+    enum class CacheState {
+        FRESH, CACHED_EQUAL, CACHED_CHANGED
+    }
 }

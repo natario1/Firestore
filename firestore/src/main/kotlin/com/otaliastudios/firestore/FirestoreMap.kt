@@ -31,7 +31,7 @@ open class FirestoreMap<T>(
 
     init {
         if (source != null) {
-            mergeValues(source)
+            mergeValues(source, false)
         }
     }
 
@@ -204,7 +204,8 @@ open class FirestoreMap<T>(
     }
 
     @Suppress("UNCHECKED_CAST")
-    internal fun mergeValues(values: Map<String, T>) {
+    internal fun mergeValues(values: Map<String, T>, checkChanges: Boolean): Boolean {
+        var changed = false
         for ((key, value) in values) {
             if (isDirty(key)) continue
             if (value is Map<*, *> && value.keys.all { it is String }) {
@@ -212,17 +213,23 @@ open class FirestoreMap<T>(
                 data[key] = child
                 child as FirestoreMap<Any?>
                 value as Map<String, Any?>
-                child.mergeValues(value)
+                val childChanged = child.mergeValues(value, checkChanges && !changed)
+                changed = changed || childChanged
             } else if (value is List<*>) {
                 val child = get(key) ?: createFirestoreList<Any>(key) as T // T
                 data[key] = child
                 child as FirestoreList<Any>
                 value as List<Any>
-                child.mergeValues(value)
+                val childChanged = child.mergeValues(value, checkChanges && !changed)
+                changed = changed || childChanged
             } else {
+                if (checkChanges && !changed) {
+                    changed = changed || value != data[key]
+                }
                 data[key] = value
             }
         }
+        return changed
     }
 
     fun toSafeMap(): Map<String, Any?> {

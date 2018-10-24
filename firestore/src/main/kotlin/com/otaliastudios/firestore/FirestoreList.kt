@@ -28,7 +28,7 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
 
     init {
         if (source != null) {
-            mergeValues(source)
+            mergeValues(source, false)
         }
     }
 
@@ -114,7 +114,9 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
     }
 
     @Suppress("UNCHECKED_CAST")
-    internal fun mergeValues(values: List<T>) {
+    internal fun mergeValues(values: List<T>, checkChanges: Boolean): Boolean {
+        var changed = size != values.size
+        val copy = if (checkChanges) data.toList() else listOf()
         data.clear()
         for (value in values) {
             if (value is Map<*, *> && value.keys.all { it is String }) {
@@ -122,17 +124,25 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
                 data.add(child)
                 child as FirestoreMap<Any?>
                 value as Map<String, Any?>
-                child.mergeValues(value)
+                val childChanged = child.mergeValues(value, checkChanges && !changed)
+                changed = changed || childChanged
             } else if (value is List<*>) {
                 val child = createFirestoreList<Any>() as T
                 data.add(child)
                 child as FirestoreList<Any>
                 value as List<Any>
-                child.mergeValues(value)
+                val childChanged = child.mergeValues(value, checkChanges && !changed)
+                changed = changed || childChanged
             } else {
+                if (checkChanges && !changed) {
+                    val index = data.size
+                    val itemChanged = index > copy.lastIndex || value != copy[index]
+                    changed = changed || itemChanged
+                }
                 data.add(value)
             }
         }
+        return checkChanges && changed
     }
 
     override fun equals(other: Any?): Boolean {
