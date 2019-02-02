@@ -32,10 +32,10 @@ object FirestoreLogger {
     }
 
     internal fun v(message: String) {
-        if (level <= VERBOSE) Timber.e(message)
+        if (level <= VERBOSE) Timber.v(message)
     }
 
     internal fun v(throwable: Throwable, message: String) {
-        if (level <= VERBOSE) Timber.e(throwable, message)
+        if (level <= VERBOSE) Timber.v(throwable, message)
     }
 }

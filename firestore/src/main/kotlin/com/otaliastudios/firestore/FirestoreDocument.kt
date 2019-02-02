@@ -25,7 +25,7 @@ abstract class FirestoreDocument(
     @Suppress("MemberVisibilityCanBePrivate", "RedundantModalityModifier")
     @Exclude
     final fun isNew(): Boolean {
-        return id == null
+        return createdAt == null
     }
 
     private fun requireReference(): DocumentReference {
@@ -52,14 +52,8 @@ abstract class FirestoreDocument(
 
     @Exclude
     fun delete(): Task<Unit> {
-        return when {
-            isNew() -> throw IllegalStateException("Can not delete a new object.")
-            else -> getReference().delete().continueWith {
-                if (!it.isSuccessful) {
-                    throw it.exception!!
-                }
-            }
-        }
+        @Suppress("UNCHECKED_CAST")
+        return getReference().delete() as Task<Unit>
     }
 
     @Exclude
@@ -93,7 +87,13 @@ abstract class FirestoreDocument(
         collectAllValues(map, "")
         map["createdAt"] = FieldValue.serverTimestamp()
         map["updatedAt"] = FieldValue.serverTimestamp()
-        return reference.set(map).onSuccessTask {
+        // Add to cache NOW, then eventually revert.
+        // This is because when reference.set() succeeds, any query listener is notified
+        // before our onSuccessTask() is called. So a new item is created.
+        FirestoreDocument.CACHE.put(reference.id, this)
+        return reference.set(map).addOnFailureListener {
+            FirestoreDocument.CACHE.remove(reference.id)
+        }.onSuccessTask {
             id = reference.id
             createdAt = Timestamp.now()
             updatedAt = createdAt
@@ -165,6 +165,15 @@ abstract class FirestoreDocument(
             FirestoreParcelers.add(DocumentReference::class, DocumentReferenceParceler)
             FirestoreParcelers.add(Timestamp::class, TimestampParceler)
             FirestoreParcelers.add(FieldValue::class, FieldValueParceler)
+        }
+
+        fun <T: FirestoreDocument> getCached(id: String, type: KClass<T>): T? {
+            @Suppress("UNCHECKED_CAST")
+            return CACHE.get(id) as? T
+        }
+
+        inline fun <reified T: FirestoreDocument> getCached(id: String): T? {
+            return getCached(id, T::class)
         }
     }
 

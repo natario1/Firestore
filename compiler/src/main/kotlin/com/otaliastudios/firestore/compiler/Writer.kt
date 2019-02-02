@@ -92,6 +92,7 @@ class Writer(private val filer: Filer) {
             Classes.KOTLIN_FLOAT -> "0F as T"
             Classes.KOTLIN_DOUBLE -> "0.0 as T"
             Classes.KOTLIN_STRING -> "\"\" as T"
+            Classes.KOTLIN_BOOLEAN -> "false as T"
             Classes.TIMESTAMP -> "$type(0L, 0) as T"
             else -> return "$type::class.java.getConstructor().newInstance() as T"
         }

@@ -14,6 +14,7 @@ object Classes {
     const val KOTLIN_FLOAT = "kotlin.Float"
     const val KOTLIN_DOUBLE = "kotlin.Double"
     const val KOTLIN_STRING = "kotlin.String"
+    const val KOTLIN_BOOLEAN = "kotlin.Boolean"
 
     val FIRESTORE_EXCLUDE = Class.forName("com.google.firebase.firestore.Exclude") as Class<Annotation>
     val NULLABLE = Class.forName("org.jetbrains.annotations.Nullable") as Class<Annotation>

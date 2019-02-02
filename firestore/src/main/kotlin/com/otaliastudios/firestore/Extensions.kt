@@ -9,7 +9,7 @@ public fun <T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(type: KCl
     val result = if (cache) {
         val cached = FirestoreDocument.CACHE.get(reference.id) as? T
         if (cached == null) {
-            FirestoreLogger.v("Id ${reference.id} asked for cache. Cache miss.")
+            FirestoreLogger.w("Id ${reference.id} asked for cache. Cache miss.")
             val new = type.java.newInstance()
             new.clearDirt() // Clear dirtyness from init().
             FirestoreDocument.CACHE.put(reference.id, new)
@@ -17,9 +17,10 @@ public fun <T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(type: KCl
             new
         } else {
             if (metadata.isFromCache) {
-                FirestoreLogger.v("Id ${reference.id} asked for cache. Was found. Using CACHED_EQUAL because metadata.isFromCache.")
+                FirestoreLogger.w("Id ${reference.id} asked for cache. Was found. Using CACHED_EQUAL because metadata.isFromCache.")
                 cached.cacheState = FirestoreDocument.CacheState.CACHED_EQUAL
             } else {
+                FirestoreLogger.w("Id ${reference.id} asked for cache. Was found. We'll see if something changed.")
                 needsCacheState = true
                 /* val map = mutableMapOf<String, Any?>()
                 cached.collectAllValues(map, "")
@@ -43,13 +44,13 @@ public fun <T: FirestoreDocument> DocumentSnapshot.toFirestoreDocument(type: KCl
     }
     result.id = reference.id
     result.collection = reference.parent.path
-    val changed = result.mergeValues(data!!, needsCacheState)
+    val changed = result.mergeValues(data!!, needsCacheState, reference.id)
     if (needsCacheState) {
-        if (changed) {
-            FirestoreLogger.v("Id ${reference.id} NEW METHOD: Would be CACHED_CHANGED.")
+        result.cacheState = if (changed) {
+            FirestoreLogger.w("Id ${reference.id} NEW METHOD: It is CACHED_CHANGED.")
             FirestoreDocument.CacheState.CACHED_CHANGED
         } else {
-            FirestoreLogger.v("Id ${reference.id} NEW METHOD: Would be CACHED_EQUAL.")
+            FirestoreLogger.w("Id ${reference.id} NEW METHOD: It is CACHED_EQUAL.")
             FirestoreDocument.CacheState.CACHED_EQUAL
         }
     }

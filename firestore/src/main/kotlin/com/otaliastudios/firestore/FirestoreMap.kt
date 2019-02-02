@@ -31,7 +31,7 @@ open class FirestoreMap<T>(
 
     init {
         if (source != null) {
-            mergeValues(source, false)
+            mergeValues(source, false, "Initialization")
         }
     }
 
@@ -204,26 +204,28 @@ open class FirestoreMap<T>(
     }
 
     @Suppress("UNCHECKED_CAST")
-    internal fun mergeValues(values: Map<String, T>, checkChanges: Boolean): Boolean {
+    internal fun mergeValues(values: Map<String, T>, checkChanges: Boolean, tag: String): Boolean {
         var changed = false
         for ((key, value) in values) {
+            FirestoreLogger.v("$tag mergeValues: key $key with value $value, dirty: ${isDirty(key)}")
             if (isDirty(key)) continue
             if (value is Map<*, *> && value.keys.all { it is String }) {
                 val child = get(key) ?: createFirestoreMap<Any?>(key) as T // T
                 data[key] = child
                 child as FirestoreMap<Any?>
                 value as Map<String, Any?>
-                val childChanged = child.mergeValues(value, checkChanges && !changed)
+                val childChanged = child.mergeValues(value, checkChanges && !changed, tag)
                 changed = changed || childChanged
             } else if (value is List<*>) {
                 val child = get(key) ?: createFirestoreList<Any>(key) as T // T
                 data[key] = child
                 child as FirestoreList<Any>
                 value as List<Any>
-                val childChanged = child.mergeValues(value, checkChanges && !changed)
+                val childChanged = child.mergeValues(value, checkChanges && !changed, tag)
                 changed = changed || childChanged
             } else {
                 if (checkChanges && !changed) {
+                    FirestoreLogger.v("$tag mergeValues: key $key comparing with value ${data[key]}")
                     changed = changed || value != data[key]
                 }
                 data[key] = value
