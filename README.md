@@ -3,8 +3,8 @@
 The lightweight, efficient wrapper for Firestore model data, written in Kotlin, with data-binding and Parcelable support.
 
 ```groovy
-implementation 'com.otaliastudios:firestore:0.3.15'
-kapt 'com.otaliastudios:firestore-compiler:0.3.15'
+implementation 'com.otaliastudios:firestore:0.3.16'
+kapt 'com.otaliastudios:firestore-compiler:0.3.16'
 ```
 
 - Efficient and lightweight

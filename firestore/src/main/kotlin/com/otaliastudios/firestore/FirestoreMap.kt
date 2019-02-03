@@ -156,21 +156,36 @@ open class FirestoreMap<T>(
         }
     }
 
+    /**
+     * This is called when using the delegated property (by this).
+     * By using source[name], we will actually trigger the [get] method.
+     *
+     * As an extra feature, this function will also try to instantiate the item
+     * if possible. This means that we only offer this functionality for NON-NULLABLE, DECLARED
+     * fields, which totally makes sense.
+     *
+     * Note: getting a declared, non-nullable field that was never created, thus creating it here,
+     * makes the field dirty. This means it will be saved on next call.
+     */
     protected operator fun <R: T> getValue(source: FirestoreMap<T>, property: KProperty<*>): R {
         @Suppress("UNCHECKED_CAST")
         var what = source[property.name] as R
+
         if (what == null) {
             val provider = FirestoreDocument.metadataProvider(this::class)
             if (!provider.isNullable(property.name)) {
                 what = provider.create<R>(property.name)!!
+                source[property.name] = what
             }
         }
-        /* if (what == null && !property.returnType.isMarkedNullable) {
-            what = property.returnType.createInstance()
-        } */
         return what
     }
 
+
+    /**
+     * This is called when using the delegated property (by this).
+     * By using source[name], we will actually trigger the [set] method.
+     */
     protected operator fun <R: T> setValue(source: FirestoreMap<T>, property: KProperty<*>, what: R) {
         source[property.name] = what
     }
