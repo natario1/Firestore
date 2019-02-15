@@ -164,8 +164,6 @@ open class FirestoreMap<T>(
      * if possible. This means that we only offer this functionality for NON-NULLABLE, DECLARED
      * fields, which totally makes sense.
      *
-     * Note: getting a declared, non-nullable field that was never created, thus creating it here,
-     * makes the field dirty. This means it will be saved on next call.
      */
     protected operator fun <R: T> getValue(source: FirestoreMap<T>, property: KProperty<*>): R {
         @Suppress("UNCHECKED_CAST")
@@ -176,6 +174,9 @@ open class FirestoreMap<T>(
             if (!provider.isNullable(property.name)) {
                 what = provider.create<R>(property.name)!!
                 source[property.name] = what
+                // We don't want this to be dirty now! It was just retrieved, not really set.
+                // If we leave it dirty, it would not be updated on next mergeValues().
+                clearDirt(property.name)
             }
         }
         return what
