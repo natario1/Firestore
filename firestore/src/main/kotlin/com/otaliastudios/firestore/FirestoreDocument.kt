@@ -64,11 +64,18 @@ abstract class FirestoreDocument(
         }
     }
 
+    @Exclude
+    fun save(batch: WriteBatch) {
+        when {
+            isNew() -> create(batch)
+            else -> update(batch)
+        }
+    }
+
     private fun <T: FirestoreDocument> update(): Task<T> {
-        if (isNew()) throw IllegalStateException("Can not save a new object. Please call create().")
-        // Collect all dirty values.
+        if (isNew()) throw IllegalStateException("Can not update a new object. Please call create().")
         val map = mutableMapOf<String, Any?>()
-        flattenValues(map, "", dirtyOnly = true)
+        flattenValues(map, prefix = "", dirtyOnly = true)
         map["updatedAt"] = FieldValue.serverTimestamp()
         return getReference().update(map).onSuccessTask {
             updatedAt = Timestamp.now()
@@ -101,6 +108,22 @@ abstract class FirestoreDocument(
             @Suppress("UNCHECKED_CAST")
             Tasks.forResult(this as T)
         }
+    }
+
+    private fun update(batch: WriteBatch) {
+        if (isNew()) throw IllegalStateException("Can not update a new object. Please call create().")
+        val map = mutableMapOf<String, Any?>()
+        flattenValues(map, prefix = "", dirtyOnly = true)
+        map["updatedAt"] = FieldValue.serverTimestamp()
+        batch.update(getReference(), map)
+    }
+
+    private fun create(batch: WriteBatch) {
+        if (!isNew()) throw IllegalStateException("Can not create an existing object.")
+        val map = collectValues(dirtyOnly = false).toMutableMap()
+        map["createdAt"] = FieldValue.serverTimestamp()
+        map["updatedAt"] = FieldValue.serverTimestamp()
+        batch.update(requireReference(), map)
     }
 
     @Exclude
