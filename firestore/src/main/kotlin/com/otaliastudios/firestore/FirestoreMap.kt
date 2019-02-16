@@ -191,29 +191,44 @@ open class FirestoreMap<T>(
         source[property.name] = what
     }
 
-    internal fun collectDirtyValues(map: MutableMap<String, Any?>, prefix: String) {
+    /**
+     * Returns a map that collects all the values in this [FirestoreMap].
+     * Filters only dirty values if needed, and flattens [FirestoreMap]s and [FirestoreList]s
+     * into real [Map] and [List] values.
+     */
+    @Suppress("UNCHECKED_CAST")
+    internal fun collectValues(dirtyOnly: Boolean): Map<String, T?> {
+        val map = mutableMapOf<String, T?>()
         for (key in keys) {
             val child = get(key)
-            val childPrefix = "$prefix.$key".trim('.')
-            if (dirty.contains(key)) {
-                map[childPrefix] = child
-            } else if (child is FirestoreMap<*>) {
-                child.collectDirtyValues(map, childPrefix)
+            if (child is FirestoreMap<*>) {
+                val childMap = child.collectValues(dirtyOnly)
+                if (childMap.isNotEmpty()) map[key] = childMap as T?
             } else if (child is FirestoreList<*>) {
-                child.collectDirtyValues(map, childPrefix)
+                val childList = child.collectValues(dirtyOnly)
+                if (childList.isNotEmpty()) map[key] = childList as T?
+            } else if (!dirtyOnly || dirty.contains(key)) {
+                map[key] = child
             }
         }
+        return map
     }
 
-    internal fun collectAllValues(map: MutableMap<String, Any?>, prefix: String) {
+    /**
+     * Flattens the values inside this map, with the given prefix for our own keys.
+     * The final map will have all fields (only dirty if specified) at the base level.
+     *
+     *
+     */
+    internal fun flattenValues(map: MutableMap<String, Any?>, prefix: String, dirtyOnly: Boolean) {
         for (key in keys) {
             val child = get(key)
             val childPrefix = "$prefix.$key".trim('.')
             if (child is FirestoreMap<*>) {
-                child.collectAllValues(map, childPrefix)
+                child.flattenValues(map, childPrefix, dirtyOnly)
             } else if (child is FirestoreList<*>) {
-                child.collectAllValues(map, childPrefix)
-            } else {
+                child.flattenValues(map, childPrefix, dirtyOnly)
+            } else if (!dirtyOnly || dirty.contains(key)) {
                 map[childPrefix] = child
             }
         }
@@ -248,12 +263,6 @@ open class FirestoreMap<T>(
             }
         }
         return changed
-    }
-
-    fun toSafeMap(): Map<String, Any?> {
-        val map = mutableMapOf<String, Any?>()
-        collectAllValues(map, "")
-        return map
     }
 
     override fun equals(other: Any?): Boolean {

@@ -68,7 +68,7 @@ abstract class FirestoreDocument(
         if (isNew()) throw IllegalStateException("Can not save a new object. Please call create().")
         // Collect all dirty values.
         val map = mutableMapOf<String, Any?>()
-        collectDirtyValues(map, "")
+        flattenValues(map, "", dirtyOnly = true)
         map["updatedAt"] = FieldValue.serverTimestamp()
         return getReference().update(map).onSuccessTask {
             updatedAt = Timestamp.now()
@@ -83,8 +83,8 @@ abstract class FirestoreDocument(
         val reference = requireReference()
         // Collect all values. Can't use 'this': we can't be read by Firestore unless we have fields declared.
         // Same for FirestoreMap and FirestoreList. Each one need to return a Firestore-readable Map or List or whatever else.
-        val map = mutableMapOf<String, Any?>()
-        collectAllValues(map, "")
+        // Can't use the [flatten] API or this won't work with . fields.
+        val map = collectValues(dirtyOnly = false).toMutableMap()
         map["createdAt"] = FieldValue.serverTimestamp()
         map["updatedAt"] = FieldValue.serverTimestamp()
         // Add to cache NOW, then eventually revert.

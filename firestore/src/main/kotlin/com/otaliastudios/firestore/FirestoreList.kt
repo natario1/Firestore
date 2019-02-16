@@ -38,36 +38,40 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
 
     private var isDirty = false
 
-    internal fun collectDirtyValues(map: MutableMap<String, Any?>, prefix: String) {
-        if (isDirty()) {
-            collectAllValues(map, prefix)
-        }
-    }
-
     @Suppress("UNCHECKED_CAST")
-    internal fun collectAllValues(map: MutableMap<String, Any?>, prefix: String) {
+    internal fun flattenValues(map: MutableMap<String, Any?>, prefix: String, dirtyOnly: Boolean) {
+        if (dirtyOnly && !isDirty()) return
         val list = mutableListOf<T>()
         forEach {
             if (it is FirestoreMap<*>) {
                 val cleanMap = mutableMapOf<String, Any?>()
-                it.collectAllValues(cleanMap, "")
+                it.flattenValues(cleanMap, "", dirtyOnly)
                 list.add(cleanMap as T)
             } else if (it is FirestoreList<*>) {
                 val cleanMap = mutableMapOf<String, Any?>()
-                it.collectAllValues(cleanMap, "")
+                it.flattenValues(cleanMap, "", dirtyOnly)
                 list.add(cleanMap as T)
             } else {
                 list.add(it)
             }
         }
-         map[prefix] = list
+        map[prefix] = list
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun toSafeList(): List<T> {
-        val map = mutableMapOf<String, Any?>()
-        collectAllValues(map, "data")
-        return map["data"] as List<T>
+    internal fun collectValues(dirtyOnly: Boolean): List<T> {
+        if (dirtyOnly && !isDirty()) return listOf()
+        val list = mutableListOf<T>()
+        forEach {
+            if (it is FirestoreMap<*>) {
+                list.add(it.collectValues(dirtyOnly) as T)
+            } else if (it is FirestoreList<*>) {
+                list.add(it.collectValues(dirtyOnly) as T)
+            } else {
+                list.add(it)
+            }
+        }
+        return list
     }
 
     internal fun isDirty(): Boolean {
