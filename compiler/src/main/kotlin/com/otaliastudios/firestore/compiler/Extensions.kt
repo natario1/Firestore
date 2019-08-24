@@ -40,9 +40,16 @@ fun Messager.print(message: String) {
 
 // https://github.com/JetBrains/kotlin/tree/master/libraries/kotlinx-metadata/jvm
 // https://github.com/square/moshi/pull/570/files
-@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 fun Element.readHeader(): KotlinClassHeader? {
     return getAnnotation(Metadata::class.java)?.run {
-        KotlinClassHeader(k, mv, bv, d1, d2, xs, pn, xi)
+        KotlinClassHeader(kind,
+                metadataVersion,
+                bytecodeVersion,
+                data1,
+                data2,
+                extraString,
+                packageName,
+                extraInt
+        )
     }
 }

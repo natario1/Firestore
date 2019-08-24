@@ -14,7 +14,7 @@ class Writer(private val filer: Filer) {
             addParameter("key", String::class)
             val type = TypeVariableName.invoke("T")
             addTypeVariable(type)
-            returns(type.asNullable())
+            returns(type.copy(nullable = true))
 
             val codeBuilder = CodeBlock.builder().beginControlFlow("return when (key)")
             map.forEach { key, returnType ->
@@ -29,7 +29,7 @@ class Writer(private val filer: Filer) {
             addModifiers(KModifier.OVERRIDE, KModifier.PUBLIC)
             val type = TypeVariableName.invoke("T")
             addTypeVariable(type)
-            returns(type.asNullable())
+            returns(type.copy(nullable = true))
             addStatement("return ${getDefaultConstructorStatement(innerType)}")
         }
 
@@ -50,7 +50,7 @@ class Writer(private val filer: Filer) {
         val getBindableResourceFunction = FunSpec.builder("getBindableResource").apply {
             addModifiers(KModifier.OVERRIDE, KModifier.PUBLIC)
             addParameter("key", String::class)
-            returns(Int::class.asTypeName().asNullable())
+            returns(Int::class.asTypeName().copy(nullable = true))
 
             val codeBuilder = CodeBlock.builder().beginControlFlow("return when (key)")
             map.filter { it.value.isBindable }.forEach { key, _ ->

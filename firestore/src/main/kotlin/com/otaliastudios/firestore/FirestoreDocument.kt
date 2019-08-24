@@ -217,7 +217,7 @@ abstract class FirestoreDocument(
         internal fun metadataProvider(klass: KClass<*>): FirestoreMetadata {
             val name = klass.java.name
             if (!METADATA_PROVIDERS.containsKey(name)) {
-                val classPackage = klass.java.`package`.name
+                val classPackage = klass.java.`package`!!.name
                 val className = klass.java.simpleName
                 val metadata = Class.forName("$classPackage.$className${FirestoreMetadata.SUFFIX}")
                 METADATA_PROVIDERS[name] = metadata.newInstance() as FirestoreMetadata

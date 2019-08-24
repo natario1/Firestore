@@ -358,7 +358,7 @@ open class FirestoreMap<T>(
                 // Read the extra bundle
                 FirestoreLogger.v("Map $hashcode: reading extra bundle.")
                 val bundle = parcel.readBundle(loader)
-                FirestoreLogger.v("Map $hashcode: read extra bundle, size ${bundle.size()}")
+                FirestoreLogger.v("Map $hashcode: read extra bundle, size ${bundle?.size()}")
                 firestoreMap.onReadFromBundle(bundle!!)
                 return firestoreMap
             }
