@@ -7,6 +7,7 @@ package com.otaliastudios.firestore
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
+import androidx.annotation.Keep
 import androidx.databinding.BaseObservable
 import com.google.firebase.firestore.Exclude
 import java.util.LinkedHashMap
@@ -16,6 +17,7 @@ import kotlin.reflect.KProperty
  * A map implementation. Delegates to a mutable map.
  * Introduce dirtyness checking for childrens.
  */
+@Keep
 open class FirestoreMap<T>(
         source: Map<String, T>? = null
 ) : BaseObservable(), /*MutableMap<String, T> by data,*/ Parcelable {

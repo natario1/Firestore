@@ -7,6 +7,7 @@ package com.otaliastudios.firestore
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
+import androidx.annotation.Keep
 import com.google.firebase.firestore.Exclude
 
 /**
@@ -17,6 +18,7 @@ import com.google.firebase.firestore.Exclude
  * When an item is inserted, removed, or when a inner FirestoreMap/List is changed,
  * this list should be marked as dirty.
  */
+@Keep
 open class FirestoreList<T: Any> @JvmOverloads constructor(
         source: List<T>? = null
 ) : /* ObservableList<T>, MutableList<T> by data, */Iterable<T>, Parcelable {

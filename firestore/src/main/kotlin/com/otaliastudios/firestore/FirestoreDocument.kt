@@ -7,6 +7,8 @@ package com.otaliastudios.firestore
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.LruCache
+import androidx.annotation.Keep
+import com.google.android.gms.common.api.Batch
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
@@ -16,6 +18,7 @@ import kotlin.reflect.KClass
 /**
  * The base document class.
  */
+@Keep
 abstract class FirestoreDocument(
         @get:Exclude var collection: String? = null,
         @get:Exclude var id: String? = null,
@@ -42,7 +45,10 @@ abstract class FirestoreDocument(
         return requireReference()
     }
 
+    @get:Keep @set:Keep
     var createdAt: Timestamp? by this
+
+    @get:Keep @set:Keep
     var updatedAt: Timestamp? by this
 
     internal var cacheState: CacheState = CacheState.FRESH
@@ -57,6 +63,15 @@ abstract class FirestoreDocument(
     }
 
     @Exclude
+    internal fun delete(batch: WriteBatch): BatchOp {
+        batch.delete(getReference())
+        return object: BatchOp {
+            override fun notifyFailure() {}
+            override fun notifySuccess() {}
+        }
+    }
+
+    @Exclude
     fun <T: FirestoreDocument> save(): Task<T> {
         return when {
             isNew() -> create()
@@ -65,8 +80,8 @@ abstract class FirestoreDocument(
     }
 
     @Exclude
-    fun save(batch: WriteBatch) {
-        when {
+    internal fun save(batch: WriteBatch): BatchOp {
+        return when {
             isNew() -> create(batch)
             else -> update(batch)
         }
@@ -110,20 +125,46 @@ abstract class FirestoreDocument(
         }
     }
 
-    private fun update(batch: WriteBatch) {
+    private fun update(batch: WriteBatch): BatchOp {
         if (isNew()) throw IllegalStateException("Can not update a new object. Please call create().")
         val map = mutableMapOf<String, Any?>()
         flattenValues(map, prefix = "", dirtyOnly = true)
         map["updatedAt"] = FieldValue.serverTimestamp()
         batch.update(getReference(), map)
+        return object: BatchOp {
+            override fun notifyFailure() {}
+            override fun notifySuccess() {
+                updatedAt = Timestamp.now()
+                clearDirt()
+            }
+        }
     }
 
-    private fun create(batch: WriteBatch) {
+    private fun create(batch: WriteBatch): BatchOp {
         if (!isNew()) throw IllegalStateException("Can not create an existing object.")
+        val reference = requireReference()
         val map = collectValues(dirtyOnly = false).toMutableMap()
         map["createdAt"] = FieldValue.serverTimestamp()
         map["updatedAt"] = FieldValue.serverTimestamp()
-        batch.update(requireReference(), map)
+        batch.set(reference, map)
+        FirestoreDocument.CACHE.put(reference.id, this)
+        return object: BatchOp {
+            override fun notifyFailure() {
+                FirestoreDocument.CACHE.remove(reference.id)
+            }
+
+            override fun notifySuccess() {
+                id = reference.id
+                createdAt = Timestamp.now()
+                updatedAt = createdAt
+                clearDirt()
+            }
+        }
+    }
+
+    internal interface BatchOp {
+        fun notifySuccess()
+        fun notifyFailure()
     }
 
     @Exclude

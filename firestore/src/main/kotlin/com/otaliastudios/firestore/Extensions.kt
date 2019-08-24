@@ -1,6 +1,9 @@
 package com.otaliastudios.firestore
 
+import com.google.android.gms.tasks.Task
 import com.google.firebase.firestore.DocumentSnapshot
+import com.otaliastudios.firestore.batch.FirestoreBatchWrite
+import com.otaliastudios.firestore.batch.FirestoreBatchWriter
 import kotlin.reflect.KClass
 
 @Suppress("UNCHECKED_CAST", "RedundantVisibilityModifier")
@@ -68,4 +71,11 @@ public fun <T: Any> firestoreListOf(vararg elements: T): FirestoreList<T> {
 
 public fun <T> firestoreMapOf(vararg pairs: Pair<String, T>): FirestoreMap<T> {
     return FirestoreMap(pairs.toMap())
+}
+
+public fun batchWrite(updates: FirestoreBatchWriter.() -> Unit): Task<Unit> {
+    return FirestoreBatchWrite().run {
+        perform(updates)
+        commit()
+    }
 }
