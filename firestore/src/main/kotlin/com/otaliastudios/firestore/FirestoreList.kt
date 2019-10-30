@@ -174,24 +174,24 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
         parcel.writeInt(hashcode)
 
         // Write class name
-        FirestoreLogger.v("List $hashcode: writing class ${this::class.java.name}")
+        FirestoreLogger.i { "List $hashcode: writing class ${this::class.java.name}" }
         parcel.writeString(this::class.java.name)
 
         // Write size and dirtiness
-        FirestoreLogger.v("List $hashcode: writing dirty $isDirty and size $size")
+        FirestoreLogger.v { "List $hashcode: writing dirty $isDirty and size $size" }
         parcel.writeInt(if (isDirty) 1 else 0)
         parcel.writeInt(size)
 
         // Write actual data
         for (value in data) {
-            FirestoreLogger.v("List $hashcode: writing value ${value}")
+            FirestoreLogger.v { "List $hashcode: writing value $value" }
             FirestoreParcelers.write(parcel, value, hashcode.toString())
         }
 
         // Extra bundle
         val bundle = Bundle()
         onWriteToBundle(bundle)
-        FirestoreLogger.v("List $hashcode: writing extra bundle. Size is ${bundle.size()}")
+        FirestoreLogger.v { "List $hashcode: writing extra bundle. Size is ${bundle.size()}" }
         parcel.writeBundle(bundle)
     }
 
@@ -203,7 +203,7 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
 
             override fun createFromParcel(source: Parcel): FirestoreList<Any> {
                 // This should never be called by the framework.
-                FirestoreLogger.e("List: received call to createFromParcel without classLoader.")
+                FirestoreLogger.e { "List: received call to createFromParcel without classLoader." }
                 return createFromParcel(source, FirestoreList::class.java.classLoader!!)
             }
 
@@ -211,25 +211,25 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
                 val hashcode = parcel.readInt()
                 // Read class name
                 val klass = Class.forName(parcel.readString()!!)
-                FirestoreLogger.v("List $hashcode: read class ${klass.simpleName}")
+                FirestoreLogger.i { "List $hashcode: read class ${klass.simpleName}" }
                 @Suppress("UNCHECKED_CAST")
                 val dataList = klass.newInstance() as FirestoreList<Any>
 
                 // Read dirtyness and size
                 dataList.isDirty = parcel.readInt() == 1
                 val count = parcel.readInt()
-                FirestoreLogger.v("List $hashcode: read dirtyness ${dataList.isDirty} and size $count")
+                FirestoreLogger.v { "List $hashcode: read dirtyness ${dataList.isDirty} and size $count" }
 
                 // Read actual data
                 repeat(count) {
-                    FirestoreLogger.v("List $hashcode: reading value...")
+                    FirestoreLogger.v { "List $hashcode: reading value..." }
                     dataList.data.add(FirestoreParcelers.read(parcel, loader, hashcode.toString())!!)
                 }
 
                 // Extra bundle
-                FirestoreLogger.v("List $hashcode: reading extra bundle.")
+                FirestoreLogger.v { "List $hashcode: reading extra bundle." }
                 val bundle = parcel.readBundle(loader)!!
-                FirestoreLogger.v("List $hashcode: read extra bundle, size ${bundle.size()}")
+                FirestoreLogger.v { "List $hashcode: read extra bundle, size ${bundle.size()}" }
                 dataList.onReadFromBundle(bundle)
                 return dataList
             }

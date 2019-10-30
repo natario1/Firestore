@@ -15,6 +15,8 @@ ext {
     libArtifactId = 'firestore-compiler'
     githubUrl = rootProject.ext.githubUrl
     githubGit = rootProject.ext.githubGit
+    libLicenseName = rootProject.ext.libLicenseName
+    libLicenseUrl = rootProject.ext.libLicenseUrl
 }
 
 version = libVersion
@@ -22,10 +24,10 @@ group = libGroup
 archivesBaseName = libArtifactId
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
+    api "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
     // compile "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
-    compile "org.jetbrains.kotlinx:kotlinx-metadata-jvm:$kotlinxMetadataVersion"
-    compile "com.squareup:kotlinpoet:$kotlinPoetVersion"
+    api "org.jetbrains.kotlinx:kotlinx-metadata-jvm:$kotlinxMetadataVersion"
+    api "com.squareup:kotlinpoet:$kotlinPoetVersion"
 }
 
 sourceCompatibility = "1.8"
@@ -45,36 +47,14 @@ install.repositories.mavenInstaller.pom.project {
     }
     licenses {
         license {
-            name 'The Apache Software License, Version 2.0'
-            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+            name libLicenseName
+            url libLicenseUrl
         }
     }
     developers {
         developer {
             id 'natario'
             name 'Mattia Iavarone'
-        }
-    }
-}
-
-Properties props = new Properties()
-props.load(project.rootProject.file('local.properties').newDataInputStream())
-bintray {
-    user = props.getProperty('bintray.user')
-    key = props.get('bintray.key')
-    configurations = ['archives']
-    override = true
-    publish = true
-    pkg {
-        repo = 'android'
-        name = libName
-        licenses = ['Apache-2.0']
-        vcsUrl = githubGit
-        desc = libDescription
-        version {
-            name = libVersion
-            released = new Date()
-            vcsTag = libVersion
         }
     }
 }

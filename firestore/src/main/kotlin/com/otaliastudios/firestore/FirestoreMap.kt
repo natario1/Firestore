@@ -240,7 +240,7 @@ open class FirestoreMap<T>(
     internal fun mergeValues(values: Map<String, T>, checkChanges: Boolean, tag: String): Boolean {
         var changed = false
         for ((key, value) in values) {
-            FirestoreLogger.v("$tag mergeValues: key $key with value $value, dirty: ${isDirty(key)}")
+            FirestoreLogger.v { "$tag mergeValues: key $key with value $value, dirty: ${isDirty(key)}" }
             if (isDirty(key)) continue
             if (value is Map<*, *> && value.keys.all { it is String }) {
                 val child = get(key) ?: createFirestoreMap<Any?>(key) as T // T
@@ -258,7 +258,7 @@ open class FirestoreMap<T>(
                 changed = changed || childChanged
             } else {
                 if (checkChanges && !changed) {
-                    FirestoreLogger.v("$tag mergeValues: key $key comparing with value ${data[key]}")
+                    FirestoreLogger.v { "$tag mergeValues: key $key comparing with value ${data[key]}" }
                     changed = changed || value != data[key]
                 }
                 data[key] = value
@@ -290,25 +290,25 @@ open class FirestoreMap<T>(
         parcel.writeInt(hashcode)
 
         // Write class name
-        FirestoreLogger.v("Map $hashcode: writing class ${this::class.java.name}")
+        FirestoreLogger.i { "Map $hashcode: writing class ${this::class.java.name}" }
         parcel.writeString(this::class.java.name)
 
         // Write dirty data
-        FirestoreLogger.v("Map $hashcode: writing dirty count ${dirty.size} and dirty keys ${dirty.toTypedArray().joinToString()} ${dirty.toTypedArray().size}.")
+        FirestoreLogger.v { "Map $hashcode: writing dirty count ${dirty.size} and dirty keys ${dirty.toTypedArray().joinToString()} ${dirty.toTypedArray().size}." }
         parcel.writeInt(dirty.size)
         parcel.writeStringArray(dirty.toTypedArray())
 
-        FirestoreLogger.v("Map $hashcode: writing data size. $size")
+        FirestoreLogger.v { "Map $hashcode: writing data size. $size" }
         parcel.writeInt(size)
         for ((key, value) in data) {
             parcel.writeString(key)
-            FirestoreLogger.v("Map $hashcode: writing value for key $key...")
+            FirestoreLogger.v { "Map $hashcode: writing value for key $key..." }
             FirestoreParcelers.write(parcel, value, hashcode.toString())
         }
 
         val bundle = Bundle()
         onWriteToBundle(bundle)
-        FirestoreLogger.v("Map $hashcode: writing extra bundle. Size is ${bundle.size()}")
+        FirestoreLogger.v { "Map $hashcode: writing extra bundle. Size is ${bundle.size()}" }
         parcel.writeBundle(bundle)
     }
 
@@ -320,7 +320,7 @@ open class FirestoreMap<T>(
 
             override fun createFromParcel(source: Parcel): FirestoreMap<Any?> {
                 // This should never be called by the framework.
-                FirestoreLogger.e("Map: received call to createFromParcel without classLoader.")
+                FirestoreLogger.e { "Map: received call to createFromParcel without classLoader." }
                 return createFromParcel(source, FirestoreMap::class.java.classLoader!!)
             }
 
@@ -330,22 +330,22 @@ open class FirestoreMap<T>(
 
                 // Read class and create the map object.
                 val klass = Class.forName(parcel.readString()!!)
-                FirestoreLogger.v("Map $hashcode: read class ${klass.simpleName}")
+                FirestoreLogger.i { "Map $hashcode: read class ${klass.simpleName}" }
                 val firestoreMap = klass.newInstance() as FirestoreMap<Any?>
 
                 // Read dirty data
                 val dirty = Array(parcel.readInt()) { "" }
                 parcel.readStringArray(dirty)
-                FirestoreLogger.v("Map $hashcode: read dirty count ${dirty.size} and array ${dirty.joinToString()}")
+                FirestoreLogger.v { "Map $hashcode: read dirty count ${dirty.size} and array ${dirty.joinToString()}" }
 
                 // Read actual data
                 val count = parcel.readInt()
-                FirestoreLogger.v("Map $hashcode: read data size $count")
+                FirestoreLogger.v { "Map $hashcode: read data size $count" }
 
                 val values = HashMap<String, Any?>(count)
                 repeat(count) {
                     val key = parcel.readString()!!
-                    FirestoreLogger.v("Map $hashcode: reading value for key $key...")
+                    FirestoreLogger.v { "Map $hashcode: reading value for key $key..." }
                     values[key] = FirestoreParcelers.read(parcel, loader, hashcode.toString())
                 }
 
@@ -356,9 +356,9 @@ open class FirestoreMap<T>(
                 firestoreMap.data.putAll(values)
 
                 // Read the extra bundle
-                FirestoreLogger.v("Map $hashcode: reading extra bundle.")
+                FirestoreLogger.v { "Map $hashcode: reading extra bundle." }
                 val bundle = parcel.readBundle(loader)
-                FirestoreLogger.v("Map $hashcode: read extra bundle, size ${bundle?.size()}")
+                FirestoreLogger.v { "Map $hashcode: read extra bundle, size ${bundle?.size()}" }
                 firestoreMap.onReadFromBundle(bundle!!)
                 return firestoreMap
             }
