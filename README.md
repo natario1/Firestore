@@ -1,3 +1,9 @@
+[![Build Status](https://github.com/natario1/Firestore/workflows/Build/badge.svg?event=push)](https://github.com/natario1/Firestore/actions)
+[![Release](https://img.shields.io/github/release/natario1/Firestore.svg)](https://github.com/natario1/Firestore/releases)
+[![Issues](https://img.shields.io/github/issues-raw/natario1/Firestore.svg)](https://github.com/natario1/Firestore/issues)
+
+&#10240;  <!-- Hack to add whitespace -->
+
 *Need support, consulting, or have any other business-related question? Feel free to <a href="mailto:mat.iavarone@gmail.com">get in touch</a>.*
 
 *Like the project, make profit from it, or simply want to thank back? Please consider [sponsoring me](https://github.com/sponsors/natario1)!*
