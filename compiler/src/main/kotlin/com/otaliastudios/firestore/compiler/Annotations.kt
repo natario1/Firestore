@@ -9,8 +9,8 @@ package com.otaliastudios.firestore
 @Retention(AnnotationRetention.RUNTIME)
 annotation class FirestoreClass
 
-
-public interface FirestoreMetadata {
+@Suppress("unused")
+interface FirestoreMetadata {
     fun <T> create(key: String): T?
     fun isNullable(key: String): Boolean
     fun getBindableResource(key: String): Int?

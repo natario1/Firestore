@@ -1,8 +1,7 @@
 package com.otaliastudios.firestore.compiler
 
-@Suppress("UNCHECKED_CAST")
-object Classes {
-
+object Types {
+    const val FIRESTORE_CLASS = "com.otaliastudios.firestore.FirestoreClass"
     const val FIRESTORE_DOCUMENT = "com.otaliastudios.firestore.FirestoreDocument"
     const val FIRESTORE_MAP = "com.otaliastudios.firestore.FirestoreMap"
     const val FIRESTORE_LIST = "com.otaliastudios.firestore.FirestoreList"
@@ -16,8 +15,8 @@ object Classes {
     const val KOTLIN_STRING = "kotlin.String"
     const val KOTLIN_BOOLEAN = "kotlin.Boolean"
 
-    val FIRESTORE_EXCLUDE = Class.forName("com.google.firebase.firestore.Exclude") as Class<Annotation>
-    val NULLABLE = Class.forName("org.jetbrains.annotations.Nullable") as Class<Annotation>
-    val SUPPRESS = Class.forName("kotlin.Suppress") as Class<Annotation>
-    val BINDABLE = Class.forName("androidx.databinding.Bindable") as Class<Annotation>
+    const val FIRESTORE_EXCLUDE = "com.google.firebase.firestore.Exclude"
+    const val NULLABLE = "org.jetbrains.annotations.Nullable"
+    const val SUPPRESS = "kotlin.Suppress"
+    const val BINDABLE = "androidx.databinding.Bindable"
 }

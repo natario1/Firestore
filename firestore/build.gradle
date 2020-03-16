@@ -12,8 +12,8 @@ apply plugin: 'com.jfrog.bintray'
 ext {
     libVersion = rootProject.ext.libVersion
     libGroup = rootProject.ext.libGroup
-    libName = 'Firestore'
-    libDescription = 'The efficient wrapper for Firestore model data.'
+    libName = rootProject.ext.libName
+    libDescription = rootProject.ext.libDescription
     libArtifactId = 'firestore'
     githubUrl = rootProject.ext.githubUrl
     githubGit = rootProject.ext.githubGit
@@ -24,6 +24,7 @@ ext {
 version = libVersion
 group = libGroup
 archivesBaseName = libArtifactId
+sourceCompatibility = "1.8"
 
 android {
 
