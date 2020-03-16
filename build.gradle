@@ -41,7 +41,7 @@ ext {
 
     libName = "Firestore"
     libDescription = "The efficient wrapper for Firestore model data."
-    libVersion = "0.5.1"
+    libVersion = "0.6.0"
     libGroup = 'com.otaliastudios'
     libLicenseName = 'The Apache Software License, Version 2.0'
     libLicenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
