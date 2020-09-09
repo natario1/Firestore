@@ -4,30 +4,30 @@
 
 package com.otaliastudios.firestore
 
-import android.annotation.SuppressLint
 import android.os.Bundle
-import android.util.LruCache
 import androidx.annotation.Keep
-import com.google.android.gms.common.api.Batch
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.*
+import com.otaliastudios.firestore.parcel.DocumentReferenceParceler
+import com.otaliastudios.firestore.parcel.FieldValueParceler
+import com.otaliastudios.firestore.parcel.TimestampParceler
 import kotlin.reflect.KClass
 
 /**
  * The base document class.
  */
 @Keep
-abstract class FirestoreDocument(
-        @get:Exclude var collection: String? = null,
-        @get:Exclude var id: String? = null,
+public abstract class FirestoreDocument(
+        @get:Exclude public var collection: String? = null,
+        @get:Exclude public var id: String? = null,
         source: Map<String, Any?>? = null
 ) : FirestoreMap<Any?>(source = source) {
 
     @Suppress("MemberVisibilityCanBePrivate", "RedundantModalityModifier")
     @Exclude
-    final fun isNew(): Boolean {
+    public final fun isNew(): Boolean {
         return createdAt == null
     }
 
@@ -40,39 +40,42 @@ abstract class FirestoreDocument(
     }
 
     @Exclude
-    fun getReference(): DocumentReference {
+    public fun getReference(): DocumentReference {
         if (id == null) throw IllegalStateException("Cant return reference for unsaved data.")
         return requireReference()
     }
 
     @get:Keep @set:Keep
-    var createdAt: Timestamp? by this
+    public var createdAt: Timestamp? by this
 
     @get:Keep @set:Keep
-    var updatedAt: Timestamp? by this
+    public var updatedAt: Timestamp? by this
 
-    internal var cacheState: CacheState = CacheState.FRESH
+    internal var cacheState: FirestoreCacheState = FirestoreCacheState.FRESH
 
+    @Suppress("unused")
     @Exclude
-    fun getCacheState() = cacheState
+    public fun getCacheState(): FirestoreCacheState = cacheState
 
+    @Suppress("unused")
     @Exclude
-    fun delete(): Task<Unit> {
+    public fun delete(): Task<Unit> {
         @Suppress("UNCHECKED_CAST")
         return getReference().delete() as Task<Unit>
     }
 
     @Exclude
-    internal fun delete(batch: WriteBatch): BatchOp {
+    internal fun delete(batch: WriteBatch): FirestoreBatchOp {
         batch.delete(getReference())
-        return object: BatchOp {
+        return object: FirestoreBatchOp {
             override fun notifyFailure() {}
             override fun notifySuccess() {}
         }
     }
 
+    @Suppress("unused")
     @Exclude
-    fun <T: FirestoreDocument> save(): Task<T> {
+    public fun <T: FirestoreDocument> save(): Task<T> {
         return when {
             isNew() -> create()
             else -> update()
@@ -80,7 +83,7 @@ abstract class FirestoreDocument(
     }
 
     @Exclude
-    internal fun save(batch: WriteBatch): BatchOp {
+    internal fun save(batch: WriteBatch): FirestoreBatchOp {
         return when {
             isNew() -> create(batch)
             else -> update(batch)
@@ -112,9 +115,9 @@ abstract class FirestoreDocument(
         // Add to cache NOW, then eventually revert.
         // This is because when reference.set() succeeds, any query listener is notified
         // before our onSuccessTask() is called. So a new item is created.
-        FirestoreDocument.CACHE.put(reference.id, this)
+        FirestoreCache[reference.id] = this
         return reference.set(map).addOnFailureListener {
-            FirestoreDocument.CACHE.remove(reference.id)
+            FirestoreCache.remove(reference.id)
         }.onSuccessTask {
             id = reference.id
             createdAt = Timestamp.now()
@@ -125,13 +128,13 @@ abstract class FirestoreDocument(
         }
     }
 
-    private fun update(batch: WriteBatch): BatchOp {
+    private fun update(batch: WriteBatch): FirestoreBatchOp {
         if (isNew()) throw IllegalStateException("Can not update a new object. Please call create().")
         val map = mutableMapOf<String, Any?>()
         flattenValues(map, prefix = "", dirtyOnly = true)
         map["updatedAt"] = FieldValue.serverTimestamp()
         batch.update(getReference(), map)
-        return object: BatchOp {
+        return object: FirestoreBatchOp {
             override fun notifyFailure() {}
             override fun notifySuccess() {
                 updatedAt = Timestamp.now()
@@ -140,17 +143,17 @@ abstract class FirestoreDocument(
         }
     }
 
-    private fun create(batch: WriteBatch): BatchOp {
+    private fun create(batch: WriteBatch): FirestoreBatchOp {
         if (!isNew()) throw IllegalStateException("Can not create an existing object.")
         val reference = requireReference()
         val map = collectValues(dirtyOnly = false).toMutableMap()
         map["createdAt"] = FieldValue.serverTimestamp()
         map["updatedAt"] = FieldValue.serverTimestamp()
         batch.set(reference, map)
-        FirestoreDocument.CACHE.put(reference.id, this)
-        return object: BatchOp {
+        FirestoreCache[reference.id] = this
+        return object: FirestoreBatchOp {
             override fun notifyFailure() {
-                FirestoreDocument.CACHE.remove(reference.id)
+                FirestoreCache.remove(reference.id)
             }
 
             override fun notifySuccess() {
@@ -162,13 +165,9 @@ abstract class FirestoreDocument(
         }
     }
 
-    internal interface BatchOp {
-        fun notifySuccess()
-        fun notifyFailure()
-    }
-
+    @Suppress("unused")
     @Exclude
-    fun <T: FirestoreDocument> trySave(vararg updates: Pair<String, Any?>): Task<T> {
+    public fun <T: FirestoreDocument> trySave(vararg updates: Pair<String, Any?>): Task<T> {
         if (isNew()) throw IllegalStateException("Can not trySave a new object. Please call save() first.")
         val reference = requireReference()
         val values = updates.toMap().toMutableMap()
@@ -193,54 +192,6 @@ abstract class FirestoreDocument(
         }
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        return other is FirestoreDocument &&
-                other.id == this.id &&
-                other.collection == this.collection &&
-                super.equals(other)
-    }
-
-    companion object {
-
-        @SuppressLint("StaticFieldLeak")
-        internal val FIRESTORE = FirebaseFirestore.getInstance().apply {
-            firestoreSettings = FirebaseFirestoreSettings.Builder()
-                .setTimestampsInSnapshotsEnabled(true)
-                .build()
-        }
-
-        internal val CACHE = LruCache<String, FirestoreDocument>(100)
-
-        private val METADATA_PROVIDERS = mutableMapOf<String, FirestoreMetadata>()
-
-        internal fun metadataProvider(klass: KClass<*>): FirestoreMetadata {
-            val name = klass.java.name
-            if (!METADATA_PROVIDERS.containsKey(name)) {
-                val classPackage = klass.java.`package`!!.name
-                val className = klass.java.simpleName
-                val metadata = Class.forName("$classPackage.$className${FirestoreMetadata.SUFFIX}")
-                METADATA_PROVIDERS[name] = metadata.newInstance() as FirestoreMetadata
-            }
-            return METADATA_PROVIDERS[name] as FirestoreMetadata
-        }
-
-        init {
-            FirestoreParcelers.add(DocumentReference::class, DocumentReferenceParceler)
-            FirestoreParcelers.add(Timestamp::class, TimestampParceler)
-            FirestoreParcelers.add(FieldValue::class, FieldValueParceler)
-        }
-
-        fun <T: FirestoreDocument> getCached(id: String, type: KClass<T>): T? {
-            @Suppress("UNCHECKED_CAST")
-            return CACHE.get(id) as? T
-        }
-
-        inline fun <reified T: FirestoreDocument> getCached(id: String): T? {
-            return getCached(id, T::class)
-        }
-    }
-
     override fun onWriteToBundle(bundle: Bundle) {
         super.onWriteToBundle(bundle)
         bundle.putString("id", id)
@@ -253,7 +204,22 @@ abstract class FirestoreDocument(
         collection = bundle.getString("collection", null)
     }
 
-    enum class CacheState {
-        FRESH, CACHED_EQUAL, CACHED_CHANGED
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        return other is FirestoreDocument &&
+                other.id == this.id &&
+                other.collection == this.collection &&
+                super.equals(other)
+    }
+
+    public companion object {
+        @Deprecated(message = "Use FirestoreCache directly.", replaceWith = ReplaceWith("FirestoreCache.get"))
+        public fun <T: FirestoreDocument> getCached(id: String, type: KClass<T>): T?
+                = FirestoreCache.get(id, type)
+
+        @Suppress("unused")
+        @Deprecated(message = "Use FirestoreCache directly.", replaceWith = ReplaceWith("FirestoreCache.get"))
+        public inline fun <reified T: FirestoreDocument> getCached(id: String): T?
+                = FirestoreCache[id]
     }
 }

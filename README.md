@@ -11,8 +11,8 @@
 The lightweight, efficient wrapper for Firestore model data, written in Kotlin, with data-binding and Parcelable support.
 
 ```groovy
-implementation 'com.otaliastudios:firestore:0.6.0'
-kapt 'com.otaliastudios:firestore-compiler:0.6.0'
+implementation 'com.otaliastudios:firestore:0.7.0'
+kapt 'com.otaliastudios:firestore-compiler:0.7.0'
 ```
 
 - Efficient and lightweight
@@ -185,15 +185,15 @@ a parceler using `FirestoreDocument.registerParceler()`:
 class App : Application() {
 
     override fun onCreate() {
-        FirestoreDocument.registerParceler(GeoPoint::class, GeoPointParceler())
-        FirestoreDocument.registerParceler(Whatever::class, WhateverParceler())
+        registerParceler(GeoPointParceler)
+        registerParceler(WhateverParceler)
     }
     
-    class GeoPointParceler : FirestoreDocument.Parceler<GeoPoint>() {
+    object GeoPointParceler : FirestoreDocument.Parceler<GeoPoint>() {
         // ...
     }
     
-    class WhateverParceler : FirestoreDocument.Parceler<Whatever>() {
+    object WhateverParceler : FirestoreDocument.Parceler<Whatever>() {
         // ...
     }
 }

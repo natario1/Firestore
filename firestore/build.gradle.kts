@@ -2,13 +2,13 @@
  * Copyright (c) 2018 Otalia Studios. Author: Mattia Iavarone.
  */
 
-import com.otaliastudios.tools.publisher.PublisherExtension.License
-import com.otaliastudios.tools.publisher.PublisherExtension.Release
+import com.otaliastudios.tools.publisher.common.License
+import com.otaliastudios.tools.publisher.common.Release
 
 plugins {
     id("com.android.library")
     id("kotlin-android")
-    id("maven-publisher-bintray")
+    id("com.otaliastudios.tools.publisher")
 }
 
 android {
@@ -19,11 +19,13 @@ android {
         versionName = property("libVersion") as String
     }
 
-    dataBinding.isEnabled = true
+    buildFeatures {
+        dataBinding = true
+    }
 
     sourceSets {
-        get("main").java.srcDirs("src/main/kotlin")
-        get("test").java.srcDirs("src/test/kotlin")
+        getByName("main").java.srcDirs("src/main/kotlin")
+        getByName("test").java.srcDirs("src/test/kotlin")
     }
 
     compileOptions {
@@ -32,21 +34,21 @@ android {
     }
 
     buildTypes {
-        get("release").consumerProguardFile("proguard-rules.pro")
+        getByName("release").consumerProguardFile("proguard-rules.pro")
+    }
+
+    kotlinOptions {
+        // Until the explicitApi() works in the Kotlin block...
+        // https://youtrack.jetbrains.com/issue/KT-37652
+        freeCompilerArgs += listOf("-Xexplicit-api=strict")
     }
 }
 
 dependencies {
-    val kotlinVersion = property("kotlinVersion")
-    api("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
-    api("com.google.firebase:firebase-firestore:21.4.1")
-    api("com.jakewharton.timber:timber:4.7.1")
+    api("com.google.firebase:firebase-firestore-ktx:21.6.0")
 }
 
 publisher {
-    auth.user = "BINTRAY_USER"
-    auth.key = "BINTRAY_KEY"
-    auth.repo = "BINTRAY_REPO"
     project.artifact = "firestore"
     project.description = property("libDescription") as String
     project.group = property("libGroup") as String
@@ -55,4 +57,12 @@ publisher {
     project.addLicense(License.APACHE_2_0)
     release.setSources(Release.SOURCES_AUTO)
     release.setDocs(Release.DOCS_AUTO)
+    bintray {
+        auth.user = "BINTRAY_USER"
+        auth.key = "BINTRAY_KEY"
+        auth.repo = "BINTRAY_REPO"
+    }
+    directory {
+        directory = "../build/maven"
+    }
 }

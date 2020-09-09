@@ -1,12 +1,13 @@
-package com.otaliastudios.firestore
+package com.otaliastudios.firestore.parcel
 
 import android.os.Parcel
 import com.google.firebase.Timestamp
+import com.otaliastudios.firestore.parcel.FirestoreParceler
 
 /**
  * Parcels a possibly null Timestamp.
  */
-object TimestampParceler: FirestoreParceler<Timestamp> {
+public object TimestampParceler: FirestoreParceler<Timestamp> {
 
     override fun create(parcel: Parcel): Timestamp {
         return Timestamp(parcel.readLong(), parcel.readInt())

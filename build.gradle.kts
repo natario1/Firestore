@@ -5,7 +5,7 @@
 buildscript {
 
     extra["libDescription"] = "The efficient wrapper for Firestore model data."
-    extra["libVersion"] = "0.6.0"
+    extra["libVersion"] = "0.7.0"
     extra["libGroup"] = "com.otaliastudios"
     extra["githubUrl"] = "https://github.com/natario1/Firestore"
     extra["githubGit"] = "https://github.com/natario1/Firestore.git"
@@ -13,7 +13,6 @@ buildscript {
     extra["minSdkVersion"] = 16
     extra["compileSdkVersion"] = 29
     extra["targetSdkVersion"] = 29
-    extra["kotlinVersion"] = "1.3.61"
 
     repositories {
         google()
@@ -22,10 +21,9 @@ buildscript {
     }
 
     dependencies {
-        val kotlinVersion = property("kotlinVersion") as String
-        classpath("com.android.tools.build:gradle:3.6.1")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-        classpath("com.otaliastudios.tools:publisher:0.1.5")
+        classpath("com.android.tools.build:gradle:4.0.1")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.0")
+        classpath("com.otaliastudios.tools:publisher:0.3.3")
     }
 }
 

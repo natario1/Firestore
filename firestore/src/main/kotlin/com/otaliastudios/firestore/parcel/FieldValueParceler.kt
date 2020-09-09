@@ -1,18 +1,18 @@
-package com.otaliastudios.firestore
+package com.otaliastudios.firestore.parcel
 
 import android.os.Parcel
 import com.google.firebase.firestore.FieldValue
+import com.otaliastudios.firestore.parcel.FirestoreParceler
 
 /**
- * Parcels a FieldValue
+ * Parcels a [FieldValue].
  */
-object FieldValueParceler: FirestoreParceler<FieldValue> {
+public object FieldValueParceler: FirestoreParceler<FieldValue> {
 
     override fun create(parcel: Parcel): FieldValue {
-        val what = parcel.readString()
-        when (what) {
-            "delete" -> return FieldValue.delete()
-            "timestamp" -> return FieldValue.serverTimestamp()
+        return when (val what = parcel.readString()) {
+            "delete" -> FieldValue.delete()
+            "timestamp" -> FieldValue.serverTimestamp()
             else -> throw RuntimeException("Unknown FieldValue value: $what")
         }
     }

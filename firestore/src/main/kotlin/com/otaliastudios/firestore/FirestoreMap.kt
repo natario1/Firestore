@@ -10,26 +10,34 @@ import android.os.Parcelable
 import androidx.annotation.Keep
 import androidx.databinding.BaseObservable
 import com.google.firebase.firestore.Exclude
-import java.util.LinkedHashMap
+import com.otaliastudios.firestore.parcel.readValue
+import com.otaliastudios.firestore.parcel.writeValue
 import kotlin.reflect.KProperty
 
 /**
- * A map implementation. Delegates to a mutable map.
- * Introduce dirtyness checking for childrens.
+ * Creates a [FirestoreMap] for the given key-value pairs.
+ */
+@Suppress("unused")
+public fun <T> firestoreMapOf(vararg pairs: Pair<String, T>): FirestoreMap<T> {
+    return FirestoreMap(pairs.toMap())
+}
+
+/**
+ * A [FirestoreMap] can be used to represent firestore JSON-like structures.
+ * Implements map methods by delegating to a mutable map under the hood.
  */
 @Keep
-open class FirestoreMap<T>(
-        source: Map<String, T>? = null
-) : BaseObservable(), /*MutableMap<String, T> by data,*/ Parcelable {
+public open class FirestoreMap<T>(source: Map<String, T>? = null) : BaseObservable(), Parcelable {
 
+    private val log = FirestoreLogger("FirestoreMap")
     private val data: MutableMap<String, T> = mutableMapOf()
     private val dirty: MutableSet<String> = mutableSetOf()
 
     @get:Exclude
-    val keys get() = data.keys
+    public val keys: Set<String> get() = data.keys
 
     @get:Exclude
-    val size get() = data.size
+    public val size: Int get() = data.size
 
     init {
         if (source != null) {
@@ -82,38 +90,34 @@ open class FirestoreMap<T>(
 
 
     private fun <K> createFirestoreMap(key: String): FirestoreMap<K> {
-        val map = try { onCreateFirestoreMap<K>(key) } catch (e: Exception) {
-            FirestoreMap<K>()
-        }
+        val map = onCreateFirestoreMap<K>(key)
         map.clearDirt()
         return map
     }
 
     private fun <K: Any> createFirestoreList(key: String): FirestoreList<K> {
-        val list = try { onCreateFirestoreList<K>(key) } catch (e: Exception) {
-            FirestoreList<K>()
-        }
+        val list = onCreateFirestoreList<K>(key)
         list.clearDirt()
         return list
     }
 
     protected open fun <K> onCreateFirestoreMap(key: String): FirestoreMap<K> {
-        val provider = FirestoreDocument.metadataProvider(this::class)
-        var candidate = provider.create<FirestoreMap<K>>(key)
-        candidate = candidate ?: provider.createInnerType()
+        val metadata = this::class.metadata
+        var candidate = metadata?.create<FirestoreMap<K>>(key)
+        candidate = candidate ?: metadata?.createInnerType()
         candidate = candidate ?: FirestoreMap()
         return candidate
     }
 
     protected open fun <K: Any> onCreateFirestoreList(key: String): FirestoreList<K> {
-        val provider = FirestoreDocument.metadataProvider(this::class)
-        var candidate = provider.create<FirestoreList<K>>(key)
-        candidate = candidate ?: provider.createInnerType()
+        val metadata = this::class.metadata
+        var candidate = metadata?.create<FirestoreList<K>>(key)
+        candidate = candidate ?: metadata?.createInnerType()
         candidate = candidate ?: FirestoreList()
         return candidate
     }
 
-    final operator fun set(key: String, value: T) {
+    public operator fun set(key: String, value: T) {
         val result = onSet(key, value)
         /* if (result == null) {
             // Do nothing.
@@ -125,14 +129,14 @@ open class FirestoreMap<T>(
         } else {
             data[key] = result
             dirty.add(key)
-            val resource = FirestoreDocument.metadataProvider(this::class).getBindableResource(key)
+            val resource = this::class.metadata?.getBindableResource(key)
             if (resource != null) notifyPropertyChanged(resource)
         }
     }
 
     internal open fun onSet(key: String, value: T): T = value
 
-    final operator fun get(key: String): T? {
+    public operator fun get(key: String): T? {
         return if (key.contains('.')) {
             val first = key.split('.')[0]
             val second = key.removePrefix("$first.")
@@ -172,9 +176,9 @@ open class FirestoreMap<T>(
         var what = source[property.name] as R
 
         if (what == null) {
-            val provider = FirestoreDocument.metadataProvider(this::class)
-            if (!provider.isNullable(property.name)) {
-                what = provider.create<R>(property.name)!!
+            val metadata = this::class.metadata
+            if (metadata != null && !metadata.isNullable(property.name)) {
+                what = metadata.create<R>(property.name)!!
                 source[property.name] = what
                 // We don't want this to be dirty now! It was just retrieved, not really set.
                 // If we leave it dirty, it would not be updated on next mergeValues().
@@ -240,7 +244,7 @@ open class FirestoreMap<T>(
     internal fun mergeValues(values: Map<String, T>, checkChanges: Boolean, tag: String): Boolean {
         var changed = false
         for ((key, value) in values) {
-            FirestoreLogger.v { "$tag mergeValues: key $key with value $value, dirty: ${isDirty(key)}" }
+            log.v { "$tag mergeValues: key $key with value $value, dirty: ${isDirty(key)}" }
             if (isDirty(key)) continue
             if (value is Map<*, *> && value.keys.all { it is String }) {
                 val child = get(key) ?: createFirestoreMap<Any?>(key) as T // T
@@ -258,7 +262,7 @@ open class FirestoreMap<T>(
                 changed = changed || childChanged
             } else {
                 if (checkChanges && !changed) {
-                    FirestoreLogger.v { "$tag mergeValues: key $key comparing with value ${data[key]}" }
+                    log.v { "$tag mergeValues: key $key comparing with value ${data[key]}" }
                     changed = changed || value != data[key]
                 }
                 data[key] = value
@@ -283,44 +287,46 @@ open class FirestoreMap<T>(
         return result
     }
 
-    override fun describeContents() = 0
+    override fun describeContents(): Int = 0
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         val hashcode = hashCode()
         parcel.writeInt(hashcode)
 
         // Write class name
-        FirestoreLogger.i { "Map $hashcode: writing class ${this::class.java.name}" }
+        log.i { "Map $hashcode: writing class ${this::class.java.name}" }
         parcel.writeString(this::class.java.name)
 
         // Write dirty data
-        FirestoreLogger.v { "Map $hashcode: writing dirty count ${dirty.size} and dirty keys ${dirty.toTypedArray().joinToString()} ${dirty.toTypedArray().size}." }
+        log.v { "Map $hashcode: writing dirty count ${dirty.size} and dirty keys ${dirty.toTypedArray().joinToString()} ${dirty.toTypedArray().size}." }
         parcel.writeInt(dirty.size)
         parcel.writeStringArray(dirty.toTypedArray())
 
-        FirestoreLogger.v { "Map $hashcode: writing data size. $size" }
+        log.v { "Map $hashcode: writing data size. $size" }
         parcel.writeInt(size)
         for ((key, value) in data) {
             parcel.writeString(key)
-            FirestoreLogger.v { "Map $hashcode: writing value for key $key..." }
-            FirestoreParcelers.write(parcel, value, hashcode.toString())
+            log.v { "Map $hashcode: writing value for key $key..." }
+            parcel.writeValue(value, hashcode.toString())
         }
 
         val bundle = Bundle()
         onWriteToBundle(bundle)
-        FirestoreLogger.v { "Map $hashcode: writing extra bundle. Size is ${bundle.size()}" }
+        log.v { "Map $hashcode: writing extra bundle. Size is ${bundle.size()}" }
         parcel.writeBundle(bundle)
     }
 
-    companion object {
+    public companion object {
+
+        private val LOG = FirestoreLogger("FirestoreMap")
 
         @Suppress("unused")
         @JvmField
-        public val CREATOR = object : Parcelable.ClassLoaderCreator<FirestoreMap<Any?>> {
+        public val CREATOR: Parcelable.Creator<FirestoreMap<Any?>> = object : Parcelable.ClassLoaderCreator<FirestoreMap<Any?>> {
 
             override fun createFromParcel(source: Parcel): FirestoreMap<Any?> {
                 // This should never be called by the framework.
-                FirestoreLogger.e { "Map: received call to createFromParcel without classLoader." }
+                LOG.e { "Map: received call to createFromParcel without classLoader." }
                 return createFromParcel(source, FirestoreMap::class.java.classLoader!!)
             }
 
@@ -330,23 +336,23 @@ open class FirestoreMap<T>(
 
                 // Read class and create the map object.
                 val klass = Class.forName(parcel.readString()!!)
-                FirestoreLogger.i { "Map $hashcode: read class ${klass.simpleName}" }
+                LOG.i { "Map $hashcode: read class ${klass.simpleName}" }
                 val firestoreMap = klass.newInstance() as FirestoreMap<Any?>
 
                 // Read dirty data
                 val dirty = Array(parcel.readInt()) { "" }
                 parcel.readStringArray(dirty)
-                FirestoreLogger.v { "Map $hashcode: read dirty count ${dirty.size} and array ${dirty.joinToString()}" }
+                LOG.v { "Map $hashcode: read dirty count ${dirty.size} and array ${dirty.joinToString()}" }
 
                 // Read actual data
                 val count = parcel.readInt()
-                FirestoreLogger.v { "Map $hashcode: read data size $count" }
+                LOG.v { "Map $hashcode: read data size $count" }
 
                 val values = HashMap<String, Any?>(count)
                 repeat(count) {
                     val key = parcel.readString()!!
-                    FirestoreLogger.v { "Map $hashcode: reading value for key $key..." }
-                    values[key] = FirestoreParcelers.read(parcel, loader, hashcode.toString())
+                    LOG.v { "Map $hashcode: reading value for key $key..." }
+                    values[key] = parcel.readValue(loader, hashcode.toString())
                 }
 
                 // Set both
@@ -356,9 +362,9 @@ open class FirestoreMap<T>(
                 firestoreMap.data.putAll(values)
 
                 // Read the extra bundle
-                FirestoreLogger.v { "Map $hashcode: reading extra bundle." }
+                LOG.v { "Map $hashcode: reading extra bundle." }
                 val bundle = parcel.readBundle(loader)
-                FirestoreLogger.v { "Map $hashcode: read extra bundle, size ${bundle?.size()}" }
+                LOG.v { "Map $hashcode: read extra bundle, size ${bundle?.size()}" }
                 firestoreMap.onReadFromBundle(bundle!!)
                 return firestoreMap
             }

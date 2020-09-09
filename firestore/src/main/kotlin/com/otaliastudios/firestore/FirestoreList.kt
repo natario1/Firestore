@@ -9,24 +9,34 @@ import android.os.Parcel
 import android.os.Parcelable
 import androidx.annotation.Keep
 import com.google.firebase.firestore.Exclude
+import com.otaliastudios.firestore.parcel.readValue
+import com.otaliastudios.firestore.parcel.writeValue
 
 /**
- * A list implementation. Delegates to a mutable list.
+ * Creates a [FirestoreList] for the given values.
+ */
+@Suppress("unused")
+public fun <T: Any> firestoreListOf(vararg values: T): FirestoreList<T> {
+    return FirestoreList(values.asList())
+}
+
+/**
+ * A [FirestoreList] can be used to represent firestore lists.
+ * Implements list methods by delegates to a mutable list under the hood.
  *
- * The point of list is dirtyness.
- *
- * When an item is inserted, removed, or when a inner FirestoreMap/List is changed,
- * this list should be marked as dirty.
+ * Whenever an item is inserted, removed, or when a inner Map/List is changed,
+ * this list will be marked as dirty.
  */
 @Keep
-open class FirestoreList<T: Any> @JvmOverloads constructor(
+public open class FirestoreList<T: Any> @JvmOverloads constructor(
         source: List<T>? = null
-) : /* ObservableList<T>, MutableList<T> by data, */Iterable<T>, Parcelable {
+) : Iterable<T>, Parcelable {
 
+    private val log = FirestoreLogger("FirestoreList")
     private val data: MutableList<T> = mutableListOf()
 
     @get:Exclude
-    val size get() = data.size
+    public val size: Int get() = data.size
 
     init {
         if (source != null) {
@@ -94,29 +104,25 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
     }
 
     private fun <K> createFirestoreMap(): FirestoreMap<K> {
-        val map = try { onCreateFirestoreMap<K>() } catch (e: Exception) {
-            FirestoreMap<K>()
-        }
+        val map = onCreateFirestoreMap<K>()
         map.clearDirt()
         return map
     }
 
     private fun <K: Any> createFirestoreList(): FirestoreList<K> {
-        val list = try { onCreateFirestoreList<K>() } catch (e: Exception) {
-            FirestoreList<K>()
-        }
+        val list = onCreateFirestoreList<K>()
         list.clearDirt()
         return list
     }
 
     protected open fun <K> onCreateFirestoreMap(): FirestoreMap<K> {
-        val provider = FirestoreDocument.metadataProvider(this::class)
-        return provider.createInnerType<FirestoreMap<K>>() ?: FirestoreMap()
+        val metadata = this::class.metadata
+        return metadata?.createInnerType<FirestoreMap<K>>() ?: FirestoreMap()
     }
 
     protected open fun <K: Any> onCreateFirestoreList(): FirestoreList<K> {
-        val provider = FirestoreDocument.metadataProvider(this::class)
-        return provider.createInnerType<FirestoreList<K>>() ?: FirestoreList()
+        val metadata = this::class.metadata
+        return metadata?.createInnerType<FirestoreList<K>>() ?: FirestoreList()
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -167,43 +173,45 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
 
     // Parcelable stuff.
 
-    override fun describeContents() = 0
+    override fun describeContents(): Int = 0
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         val hashcode = hashCode()
         parcel.writeInt(hashcode)
 
         // Write class name
-        FirestoreLogger.i { "List $hashcode: writing class ${this::class.java.name}" }
+        log.i { "List $hashcode: writing class ${this::class.java.name}" }
         parcel.writeString(this::class.java.name)
 
         // Write size and dirtiness
-        FirestoreLogger.v { "List $hashcode: writing dirty $isDirty and size $size" }
+        log.v { "List $hashcode: writing dirty $isDirty and size $size" }
         parcel.writeInt(if (isDirty) 1 else 0)
         parcel.writeInt(size)
 
         // Write actual data
         for (value in data) {
-            FirestoreLogger.v { "List $hashcode: writing value $value" }
-            FirestoreParcelers.write(parcel, value, hashcode.toString())
+            log.v { "List $hashcode: writing value $value" }
+            parcel.writeValue(value, hashcode.toString())
         }
 
         // Extra bundle
         val bundle = Bundle()
         onWriteToBundle(bundle)
-        FirestoreLogger.v { "List $hashcode: writing extra bundle. Size is ${bundle.size()}" }
+        log.v { "List $hashcode: writing extra bundle. Size is ${bundle.size()}" }
         parcel.writeBundle(bundle)
     }
 
-    companion object {
+    public companion object {
+
+        private val LOG = FirestoreLogger("FirestoreList")
 
         @Suppress("unused")
         @JvmField
-        public val CREATOR = object : Parcelable.ClassLoaderCreator<FirestoreList<Any>> {
+        public val CREATOR: Parcelable.Creator<FirestoreList<Any>> = object : Parcelable.ClassLoaderCreator<FirestoreList<Any>> {
 
             override fun createFromParcel(source: Parcel): FirestoreList<Any> {
                 // This should never be called by the framework.
-                FirestoreLogger.e { "List: received call to createFromParcel without classLoader." }
+                LOG.e { "List: received call to createFromParcel without classLoader." }
                 return createFromParcel(source, FirestoreList::class.java.classLoader!!)
             }
 
@@ -211,25 +219,25 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
                 val hashcode = parcel.readInt()
                 // Read class name
                 val klass = Class.forName(parcel.readString()!!)
-                FirestoreLogger.i { "List $hashcode: read class ${klass.simpleName}" }
+                LOG.i { "List $hashcode: read class ${klass.simpleName}" }
                 @Suppress("UNCHECKED_CAST")
                 val dataList = klass.newInstance() as FirestoreList<Any>
 
                 // Read dirtyness and size
                 dataList.isDirty = parcel.readInt() == 1
                 val count = parcel.readInt()
-                FirestoreLogger.v { "List $hashcode: read dirtyness ${dataList.isDirty} and size $count" }
+                LOG.v { "List $hashcode: read dirtyness ${dataList.isDirty} and size $count" }
 
                 // Read actual data
                 repeat(count) {
-                    FirestoreLogger.v { "List $hashcode: reading value..." }
-                    dataList.data.add(FirestoreParcelers.read(parcel, loader, hashcode.toString())!!)
+                    LOG.v { "List $hashcode: reading value..." }
+                    dataList.data.add(parcel.readValue(loader, hashcode.toString())!!)
                 }
 
                 // Extra bundle
-                FirestoreLogger.v { "List $hashcode: reading extra bundle." }
+                LOG.v { "List $hashcode: reading extra bundle." }
                 val bundle = parcel.readBundle(loader)!!
-                FirestoreLogger.v { "List $hashcode: read extra bundle, size ${bundle.size()}" }
+                LOG.v { "List $hashcode: read extra bundle, size ${bundle.size()}" }
                 dataList.onReadFromBundle(bundle)
                 return dataList
             }
@@ -246,24 +254,24 @@ open class FirestoreList<T: Any> @JvmOverloads constructor(
 
     // Dirtyness stuff.
 
-    fun add(element: T): Boolean {
+    public fun add(element: T): Boolean {
         data.add(element)
         isDirty = true
         return true
     }
 
-    fun add(index: Int, element: T) {
+    public fun add(index: Int, element: T) {
         data.add(index, element)
         isDirty = true
     }
 
-    fun remove(element: T): Boolean {
+    public fun remove(element: T): Boolean {
         val result = data.remove(element)
         isDirty = true
         return result
     }
 
-    operator fun set(index: Int, element: T): T {
+    public operator fun set(index: Int, element: T): T {
         val value = data.set(index, element)
         isDirty = true
         return value

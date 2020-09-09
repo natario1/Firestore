@@ -2,12 +2,12 @@
  * Copyright (c) 2018 Otalia Studios. Author: Mattia Iavarone.
  */
 
-import com.otaliastudios.tools.publisher.PublisherExtension.License
-import com.otaliastudios.tools.publisher.PublisherExtension.Release
+import com.otaliastudios.tools.publisher.common.License
+import com.otaliastudios.tools.publisher.common.Release
 
 plugins {
     id("kotlin")
-    id("maven-publisher-bintray")
+    id("com.otaliastudios.tools.publisher")
 }
 
 java {
@@ -16,17 +16,12 @@ java {
 }
 
 dependencies {
-    val kotlinVersion = property("kotlinVersion") as String
-    api("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
     api("com.squareup:kotlinpoet:1.5.0")
     api("com.squareup:kotlinpoet-metadata:1.5.0")
     api("com.squareup:kotlinpoet-metadata-specs:1.5.0")
 }
 
 publisher {
-    auth.user = "BINTRAY_USER"
-    auth.key = "BINTRAY_KEY"
-    auth.repo = "BINTRAY_REPO"
     project.artifact = "firestore-compiler"
     project.description = property("libDescription") as String
     project.group = property("libGroup") as String
@@ -36,4 +31,12 @@ publisher {
     release.version = property("libVersion") as String
     release.setSources(Release.SOURCES_AUTO)
     release.setDocs(Release.DOCS_AUTO)
+    bintray {
+        auth.user = "BINTRAY_USER"
+        auth.key = "BINTRAY_KEY"
+        auth.repo = "BINTRAY_REPO"
+    }
+    directory {
+        directory = "../build/maven"
+    }
 }
