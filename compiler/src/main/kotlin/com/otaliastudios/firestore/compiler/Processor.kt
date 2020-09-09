@@ -68,7 +68,15 @@ class Processor : AbstractProcessor() {
 
         // Inspect properties.
         val spec = element.toTypeSpec()
-        spec.propertySpecs.forEach { property ->
+        spec.propertySpecs.filter {
+            // The properties we want to support are those delegated with by this(),
+            // the rest is probably class state that should not be in firestore.
+            it.delegated
+            true
+        }.filter {
+            logInfo("INSPECTING! Property:${it.name} Initializer:${it.initializer} Getter:${it.getter} ReceiverType:${it.receiverType}")
+            false
+        }.forEach { property ->
             logInfo("Inspecting property ${property.name} of type ${property.type}.")
             val annotationsSpecs = property.annotations + (property.getter?.annotations ?: listOf())
             val annotations = annotationsSpecs.map { it.className.canonicalName }
@@ -224,11 +232,11 @@ class Processor : AbstractProcessor() {
     }
 
     @Suppress("SameParameterValue")
-    private fun logError(message: String, element: Element?) {
+    private fun logError(message: String, element: Element? = null) {
         processingEnv.messager.printMessage(Diagnostic.Kind.ERROR, message, element)
     }
 
     private fun logInfo(message: String) {
-        processingEnv.messager.printMessage(Diagnostic.Kind.NOTE, message)
+        processingEnv.messager.printMessage(Diagnostic.Kind.NOTE, message + "\n ")
     }
 }

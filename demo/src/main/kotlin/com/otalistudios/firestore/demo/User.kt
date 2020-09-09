@@ -10,7 +10,7 @@ import com.otaliastudios.firestore.FirestoreMap
 @FirestoreClass
 class User : FirestoreDocument() {
     var type: Int by this
-    var imageUrl: String? by this
+    var imageUrl: String? by this("image_url")
     var messages: Messages by this
 
     @FirestoreClass
@@ -20,7 +20,7 @@ class User : FirestoreDocument() {
     class Message : FirestoreMap<Any?>() {
         var from: String by this
         var to: String by this
-        var text: String? by this
+        var text: String? by this()
     }
 
     init {

@@ -12,6 +12,7 @@ import androidx.databinding.BaseObservable
 import com.google.firebase.firestore.Exclude
 import com.otaliastudios.firestore.parcel.readValue
 import com.otaliastudios.firestore.parcel.writeValue
+import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 /**
@@ -160,41 +161,6 @@ public open class FirestoreMap<T>(source: Map<String, T>? = null) : BaseObservab
             throw RuntimeException("Trying to access map with dot notation, " +
                     "but it is not a FirestoreMap. key: $key, value: $data")
         }
-    }
-
-    /**
-     * This is called when using the delegated property (by this).
-     * By using source[name], we will actually trigger the [get] method.
-     *
-     * As an extra feature, this function will also try to instantiate the item
-     * if possible. This means that we only offer this functionality for NON-NULLABLE, DECLARED
-     * fields, which totally makes sense.
-     *
-     */
-    protected operator fun <R: T> getValue(source: FirestoreMap<T>, property: KProperty<*>): R {
-        @Suppress("UNCHECKED_CAST")
-        var what = source[property.name] as R
-
-        if (what == null) {
-            val metadata = this::class.metadata
-            if (metadata != null && !metadata.isNullable(property.name)) {
-                what = metadata.create<R>(property.name)!!
-                source[property.name] = what
-                // We don't want this to be dirty now! It was just retrieved, not really set.
-                // If we leave it dirty, it would not be updated on next mergeValues().
-                clearDirt(property.name)
-            }
-        }
-        return what
-    }
-
-
-    /**
-     * This is called when using the delegated property (by this).
-     * By using source[name], we will actually trigger the [set] method.
-     */
-    protected operator fun <R: T> setValue(source: FirestoreMap<T>, property: KProperty<*>, what: R) {
-        source[property.name] = what
     }
 
     /**
@@ -378,4 +344,23 @@ public open class FirestoreMap<T>(source: Map<String, T>? = null) : BaseObservab
     protected open fun onWriteToBundle(bundle: Bundle) {}
 
     protected open fun onReadFromBundle(bundle: Bundle) {}
+
+    // Delegation
+
+    protected operator fun <R: T> invoke(name: String? = null): ReadWriteProperty<FirestoreMap<T>, R>
+            = FirestoreFieldDelegate(name)
+
+
+    // To support "by this" without a function...
+
+    private val defaultDelegate = this<T>()
+
+    protected operator fun <R: T> getValue(source: FirestoreMap<T>, property: KProperty<*>): R {
+        @Suppress("UNCHECKED_CAST")
+        return defaultDelegate.getValue(source, property) as R
+    }
+
+    protected operator fun <R: T> setValue(source: FirestoreMap<T>, property: KProperty<*>, what: R) {
+        defaultDelegate.setValue(source, property, what)
+    }
 }
